@@ -24,6 +24,11 @@ fn main() -> anyhow::Result<()> {
     // used to compute dt
     let mut time = std::time::Instant::now();
 
+    // used to compute framerate
+    let mut frames = 0;
+    let mut framerate: f64 = -1.;
+    let mut frame_time = std::time::Instant::now();
+
     loop {
         let dt = time.elapsed();
         time = std::time::Instant::now();
@@ -47,13 +52,32 @@ fn main() -> anyhow::Result<()> {
             }
         }
 
+        // update framerate every 100 frames
+        frames += 1;
+        if frames % 100 == 0 {
+            let time = frame_time.elapsed();
+            framerate = 100.0 / time.as_secs_f64();
+            frame_time = std::time::Instant::now();
+        }
+
         // render
-        execute!(stdout, MoveTo(0, 0))?;
 
         sim.update(dt.as_secs_f64());
         let output = renderer.render(&sim);
 
+        execute!(stdout, MoveTo(0, 0))?;
         stdout.write_all(output.as_bytes())?;
+
+        if framerate >= 0. {
+            let framerate = format!("{framerate:.1} FPS");
+            execute!(stdout, MoveTo(0, 0))?;
+            stdout.write_all(framerate.as_bytes())?;
+
+            let particle_count = format!("{} particles", sim.particles().len());
+            execute!(stdout, MoveTo(0, 1))?;
+            stdout.write_all(particle_count.as_bytes())?;
+        }
+
         stdout.flush()?;
     }
 
