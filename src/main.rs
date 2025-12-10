@@ -45,9 +45,7 @@ fn main() -> anyhow::Result<()> {
                 }
                 crossterm::event::Event::Mouse(event) => {
                     if matches!(event.kind, MouseEventKind::Down(..)) {
-                        for _ in 0..50 {
-                            sim.add_particle(event.column as f64, event.row as f64);
-                        }
+                        sim.add_particle(event.column as f64, event.row as f64);
                     }
                 }
                 _ => {}
