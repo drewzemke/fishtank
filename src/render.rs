@@ -16,32 +16,34 @@ impl Renderer {
     }
 
     pub fn render(&mut self, sim: &Simulation) -> &str {
-        let mut output = vec![vec![' '; self.cols]; self.rows];
+        let mut output = vec![vec![0u8; self.cols]; self.rows];
 
         for particle in sim.particles() {
-            let adjusted_y = particle.y() / 2.;
-
-            let row = adjusted_y as usize;
+            let row = particle.y() as usize / 2;
             let col = particle.x() as usize;
 
             if row >= self.rows || col >= self.cols {
                 continue;
             }
 
-            output[row][col] = if adjusted_y.fract() > 0.5 {
-                if output[row][col] == '▀' {
-                    '█'
-                } else {
-                    '▄'
-                }
-            } else if output[row][col] == '▄' {
-                '█'
+            if (particle.y() / 2.).fract() > 0.5 {
+                output[row][col] |= 0b10; // bottom half
             } else {
-                '▀'
+                output[row][col] |= 0b01; // top
             }
         }
 
-        self.last = output.into_iter().flatten().collect::<String>();
+        self.last = output
+            .into_iter()
+            .flatten()
+            .map(|byte| match byte {
+                0 => ' ',
+                1 => '▀',
+                2 => '▄',
+                3 => '█',
+                _ => unreachable!(),
+            })
+            .collect::<String>();
 
         &self.last
     }
