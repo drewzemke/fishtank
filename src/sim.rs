@@ -1,7 +1,11 @@
+use std::collections::HashMap;
+
 use rand::Rng;
 
 use constants::DAMPENING;
 use particle::Particle;
+
+use crate::sim::constants::CELL_SIZE;
 
 mod constants;
 mod particle;
@@ -10,6 +14,7 @@ pub struct Simulation {
     width: f64,
     height: f64,
     particles: Vec<Particle>,
+    spatial_hash: HashMap<(i64, i64), Vec<usize>>, // maps cell to indices
     rng: rand::rngs::ThreadRng,
 }
 
@@ -19,6 +24,7 @@ impl Simulation {
             width,
             height,
             particles: Vec::new(),
+            spatial_hash: HashMap::new(),
             rng: rand::rng(),
         }
     }
@@ -33,22 +39,54 @@ impl Simulation {
     }
 
     pub fn update(&mut self, dt_secs: f64) {
-        for idx1 in 0..self.particles.len() {
-            for idx2 in (idx1 + 1)..self.particles.len() {
-                let [p1, p2] = self
-                    .particles
-                    .get_disjoint_mut([idx1, idx2])
-                    .expect("valid indices");
+        // hash particle positions into cells
+        for (idx, particle) in self.particles.iter().enumerate() {
+            let key = (
+                (particle.x() / CELL_SIZE).floor() as i64,
+                (particle.y() / CELL_SIZE).floor() as i64,
+            );
+            self.spatial_hash
+                .entry(key)
+                .and_modify(|v| v.push(idx))
+                .or_insert_with(|| Vec::from([idx]));
+        }
 
-                let impulse = Particle::compute_collision_impulse(p1, p2);
-                p1.vel = (p1.vel.0 - impulse.0, p1.vel.1 - impulse.1);
-                p2.vel = (p2.vel.0 + impulse.0, p2.vel.1 + impulse.1);
+        // for each cell, only compute collisions with nearby neighbors
+        for idx1 in 0..self.particles.len() {
+            let particle = &self.particles[idx1];
+            let key = (
+                (particle.x() / CELL_SIZE).floor() as i64,
+                (particle.y() / CELL_SIZE).floor() as i64,
+            );
+
+            for x_offset in [-1, 0, 1] {
+                for y_offset in [-1, 0, 1] {
+                    let key = (key.0 + x_offset, key.1 + y_offset);
+                    if let Some(v) = self.spatial_hash.get(&key) {
+                        for idx2 in v {
+                            if *idx2 <= idx1 {
+                                continue;
+                            }
+
+                            let [p1, p2] = self
+                                .particles
+                                .get_disjoint_mut([idx1, *idx2])
+                                .expect("valid indices");
+
+                            let impulse = Particle::compute_collision_impulse(p1, p2);
+                            p1.vel = (p1.vel.0 - impulse.0, p1.vel.1 - impulse.1);
+                            p2.vel = (p2.vel.0 + impulse.0, p2.vel.1 + impulse.1);
+                        }
+                    }
+                }
             }
 
             let particle = &mut self.particles[idx1];
             Self::compute_boundary_collisions(particle, self.width, self.height);
             particle.update_pos(dt_secs);
         }
+
+        self.spatial_hash.drain();
     }
 
     fn compute_boundary_collisions(particle: &mut Particle, width: f64, height: f64) {
