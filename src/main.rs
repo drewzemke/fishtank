@@ -18,7 +18,7 @@ fn main() -> anyhow::Result<()> {
 
     let (cols, rows) = terminal::size().unwrap();
 
-    let mut sim = Simulation::new(cols as f64, rows as f64);
+    let mut sim = Simulation::new(cols as f64, 2. * rows as f64);
     let mut renderer = Renderer::new(rows as usize, cols as usize);
 
     // used to compute dt
@@ -45,7 +45,7 @@ fn main() -> anyhow::Result<()> {
                 }
                 crossterm::event::Event::Mouse(event) => {
                     if matches!(event.kind, MouseEventKind::Down(..)) {
-                        sim.add_particle(event.column as f64, event.row as f64);
+                        sim.add_particle(event.column as f64, 2. * event.row as f64);
                     }
                 }
                 _ => {}

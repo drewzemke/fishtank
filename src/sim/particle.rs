@@ -19,10 +19,6 @@ impl Particle {
         self.pos.0 -= self.vel.0 * dt_secs;
     }
 
-    pub fn to_cell(&self) -> (usize, usize) {
-        (self.y() as usize, self.x() as usize)
-    }
-
     #[inline]
     pub fn x(&self) -> f64 {
         self.pos.0
