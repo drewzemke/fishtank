@@ -1,4 +1,7 @@
-use std::io::{Write, stdout};
+use std::{
+    f64::consts::PI,
+    io::{Write, stdout},
+};
 
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
@@ -45,7 +48,15 @@ fn main() -> anyhow::Result<()> {
                 }
                 crossterm::event::Event::Mouse(event) => {
                     if matches!(event.kind, MouseEventKind::Down(..)) {
-                        sim.add_particle(event.column as f64, 2. * event.row as f64);
+                        let r = 10.;
+                        let n = 50;
+                        for i in 0..n {
+                            let i = i as f64;
+                            sim.add_particle(
+                                event.column as f64 + r * f64::cos(2. * i * PI / n as f64),
+                                2. * event.row as f64 + r * f64::sin(2. * i * PI / n as f64),
+                            );
+                        }
                     }
                 }
                 _ => {}
