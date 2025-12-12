@@ -5,9 +5,15 @@ use rand::Rng;
 use constants::DAMPENING;
 use particle::Particle;
 
-use crate::sim::constants::CELL_SIZE;
+use crate::sim::{
+    constants::{
+        CELL_SIZE, GRAVITY, PARTICLE_MASS, SMOOTHING_RADIUS, STIFFNESS, TARGET_DENSITY, VISCOSITY,
+    },
+    kernels::{poly6, spiky_grad, visc_laplacian},
+};
 
 mod constants;
+mod kernels;
 mod particle;
 
 pub struct Simulation {
@@ -51,46 +57,102 @@ impl Simulation {
                 .or_insert_with(|| Vec::from([idx]));
         }
 
-        // for each cell, only compute collisions with nearby neighbors
-        for idx1 in 0..self.particles.len() {
-            let particle = &self.particles[idx1];
+        // density computation
+        let mut densities = vec![0.; self.particles.len()];
+
+        for (idx1, pt) in self.particles.iter().enumerate() {
             let key = (
-                (particle.x() / CELL_SIZE).floor() as i64,
-                (particle.y() / CELL_SIZE).floor() as i64,
+                (pt.x() / CELL_SIZE).floor() as i64,
+                (pt.y() / CELL_SIZE).floor() as i64,
             );
 
+            // only do computations in neighboring cells
             for x_offset in [-1, 0, 1] {
                 for y_offset in [-1, 0, 1] {
                     let key = (key.0 + x_offset, key.1 + y_offset);
                     if let Some(v) = self.spatial_hash.get(&key) {
                         for idx2 in v {
-                            if *idx2 <= idx1 {
+                            let pt2 = &self.particles[*idx2];
+
+                            // restrict attention to neighbors within SMOOTHING_RADIUS
+                            let sq_dist = (pt.x() - pt2.x()).powi(2) + (pt.y() - pt2.y()).powi(2);
+                            if sq_dist > SMOOTHING_RADIUS.powi(2) {
                                 continue;
                             }
 
-                            let [p1, p2] = self
-                                .particles
-                                .get_disjoint_mut([idx1, *idx2])
-                                .expect("valid indices");
-
-                            let impulse = Particle::compute_collision_impulse(p1, p2);
-                            p1.vel = (p1.vel.0 - impulse.0, p1.vel.1 - impulse.1);
-                            p2.vel = (p2.vel.0 + impulse.0, p2.vel.1 + impulse.1);
+                            densities[idx1] += PARTICLE_MASS * poly6(sq_dist);
                         }
                     }
                 }
             }
+        }
 
-            let particle = &mut self.particles[idx1];
-            Self::compute_boundary_collisions(particle, self.width, self.height);
-            particle.update_pos(dt_secs);
+        // pressure computation
+        let pressures = densities
+            .iter()
+            .map(|d| STIFFNESS * (d - TARGET_DENSITY))
+            .collect::<Vec<_>>();
+
+        // force computation
+        let mut forces = vec![(0., -GRAVITY); self.particles.len()];
+
+        for (idx1, pt) in self.particles.iter().enumerate() {
+            let key = (
+                (pt.x() / CELL_SIZE).floor() as i64,
+                (pt.y() / CELL_SIZE).floor() as i64,
+            );
+
+            // only do computations in neighboring cells
+            for x_offset in [-1, 0, 1] {
+                for y_offset in [-1, 0, 1] {
+                    let key = (key.0 + x_offset, key.1 + y_offset);
+                    if let Some(v) = self.spatial_hash.get(&key) {
+                        for idx2 in v {
+                            let pt2 = &self.particles[*idx2];
+
+                            // restrict attention to neighbors within SMOOTHING_RADIUS, excluding self
+                            let disp = (pt.x() - pt2.x(), pt.y() - pt2.y());
+                            let dist = (disp.0.powi(2) + disp.1.powi(2)).sqrt();
+                            if idx1 == *idx2 || dist > SMOOTHING_RADIUS || dist <= 0. {
+                                continue;
+                            }
+
+                            // pressure force
+                            let pressure_force_coeff = -PARTICLE_MASS
+                                * (pressures[idx1] + pressures[*idx2])
+                                * spiky_grad(dist)
+                                / (2. * densities[*idx2]);
+
+                            forces[idx1].0 += pressure_force_coeff * disp.0 / dist;
+                            forces[idx1].1 += pressure_force_coeff * disp.1 / dist;
+
+                            // viscosity force
+                            let vel_diff = (pt2.vel_x() - pt.vel_x(), pt2.vel_y() - pt.vel_y());
+
+                            let visc_force_coeff =
+                                VISCOSITY * PARTICLE_MASS * visc_laplacian(dist) / densities[*idx2];
+
+                            forces[idx1].0 += visc_force_coeff * vel_diff.0;
+                            forces[idx1].1 += visc_force_coeff * vel_diff.1;
+                        }
+                    }
+                }
+            }
+        }
+
+        // apply forces and move particles
+        for (idx, p) in self.particles.iter_mut().enumerate() {
+            let density = densities[idx];
+            let force = (forces[idx].0 / density, forces[idx].1 / density);
+            p.update_vel(force, dt_secs);
+            p.update_pos(dt_secs);
+            Self::apply_boundaries(p, self.width, self.height);
         }
 
         self.spatial_hash.drain();
     }
 
-    fn compute_boundary_collisions(particle: &mut Particle, width: f64, height: f64) {
-        // if the particle is out of bounds, put it back in bounds reverse its velocity with dampening
+    fn apply_boundaries(particle: &mut Particle, width: f64, height: f64) {
         if particle.x() < 0. {
             particle.set_x(-particle.x());
             particle.vel.0 *= -DAMPENING;

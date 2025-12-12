@@ -1,4 +1,4 @@
-use super::constants::{COLLISION_RADIUS, DAMPENING, GRAVITY};
+use super::constants::{COLLISION_RADIUS, DAMPENING};
 
 pub struct Particle {
     pos: (f64, f64),
@@ -13,8 +13,12 @@ impl Particle {
         }
     }
 
+    pub fn update_vel(&mut self, force: (f64, f64), dt_secs: f64) {
+        self.vel.0 += force.0 * dt_secs;
+        self.vel.1 += force.1 * dt_secs;
+    }
+
     pub fn update_pos(&mut self, dt_secs: f64) {
-        self.vel.1 -= GRAVITY * dt_secs;
         self.pos.1 -= self.vel.1 * dt_secs;
         self.pos.0 -= self.vel.0 * dt_secs;
     }

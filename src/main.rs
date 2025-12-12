@@ -48,6 +48,15 @@ fn main() -> anyhow::Result<()> {
                 }
                 crossterm::event::Event::Mouse(event) => {
                     if matches!(event.kind, MouseEventKind::Down(..)) {
+                        for i in -10..=10 {
+                            for j in -10..=10 {
+                                sim.add_particle(
+                                    event.column as f64 + i as f64,
+                                    event.row as f64 + j as f64,
+                                );
+                            }
+                        }
+
                         let r = 10.;
                         let n = 50;
                         for i in 0..n {
