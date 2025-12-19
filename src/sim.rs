@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use rand::Rng;
-
 use constants::DAMPENING;
 use particle::Particle;
 
@@ -15,13 +13,13 @@ use crate::sim::{
 mod constants;
 mod kernels;
 mod particle;
+pub mod runner;
 
 pub struct Simulation {
     width: f64,
     height: f64,
     particles: Vec<Particle>,
     spatial_hash: HashMap<(i64, i64), Vec<usize>>, // maps cell to indices
-    rng: rand::rngs::ThreadRng,
 }
 
 impl Simulation {
@@ -31,17 +29,11 @@ impl Simulation {
             height,
             particles: Vec::new(),
             spatial_hash: HashMap::new(),
-            rng: rand::rng(),
         }
     }
 
     pub fn add_particle(&mut self, x: f64, y: f64) {
-        self.particles.push(Particle::new(
-            x,
-            y,
-            self.rng.random_range(-50. ..50.),
-            self.rng.random_range(-50. ..50.),
-        ));
+        self.particles.push(Particle::new(x, y, 0., 0.));
     }
 
     pub fn update(&mut self, dt_secs: f64) {

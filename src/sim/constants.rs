@@ -1,3 +1,5 @@
+pub const TIMESTEP_MS: u64 = 20;
+
 pub const GRAVITY: f64 = 20.;
 
 // collision model
