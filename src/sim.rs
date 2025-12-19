@@ -14,6 +14,7 @@ mod constants;
 mod kernels;
 mod particle;
 pub mod runner;
+pub mod seed;
 
 pub struct Simulation {
     width: f64,
@@ -82,7 +83,7 @@ impl Simulation {
         // pressure computation
         let pressures = densities
             .iter()
-            .map(|d| STIFFNESS * (d - TARGET_DENSITY))
+            .map(|d| STIFFNESS * (TARGET_DENSITY - d))
             .collect::<Vec<_>>();
 
         // force computation

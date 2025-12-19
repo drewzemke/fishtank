@@ -1,5 +1,4 @@
 use std::{
-    f64::consts::PI,
     io::{Write, stdout},
     sync::{Arc, Mutex},
 };
@@ -12,7 +11,11 @@ use crossterm::{
 };
 use fishtank::{
     render::Renderer,
-    sim::{Simulation, runner::run_sim_loop},
+    sim::{
+        Simulation,
+        runner::run_sim_loop,
+        seed::{add_dense_square, add_uniform_points},
+    },
 };
 
 fn main() -> anyhow::Result<()> {
@@ -25,10 +28,14 @@ fn main() -> anyhow::Result<()> {
 
     let (cols, rows) = terminal::size().unwrap();
 
-    let sim = Simulation::new(cols as f64, 2. * rows as f64);
-    let sim = Arc::new(Mutex::new(sim));
-
     let mut renderer = Renderer::new(rows as usize, cols as usize);
+
+    let mut sim = Simulation::new(cols as f64, 2. * rows as f64);
+
+    // seed the sim with random particles
+    add_uniform_points(&mut sim, 10000, cols as f64, rows as f64 * 2.0);
+
+    let sim = Arc::new(Mutex::new(sim));
 
     // used to compute framerate
     let mut frames = 0;
@@ -55,14 +62,8 @@ fn main() -> anyhow::Result<()> {
                 crossterm::event::Event::Mouse(event) => {
                     let mut sim = sim.lock().unwrap();
                     if matches!(event.kind, MouseEventKind::Down(..)) {
-                        for i in -20..=20 {
-                            for j in -20..=20 {
-                                sim.add_particle(
-                                    event.column as f64 + (i as f64) / 2.,
-                                    (event.row as f64) * 2. + (j as f64) / 2.,
-                                );
-                            }
-                        }
+                        let center = (event.column as f64, event.row as f64 * 2.);
+                        add_dense_square(&mut sim, center, 20);
                     }
                 }
                 _ => {}
