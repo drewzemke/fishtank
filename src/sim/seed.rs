@@ -10,6 +10,7 @@ pub fn add_dense_square(sim: &mut Simulation, center: (f64, f64), radius: i32) {
     }
 }
 
+// FIXME: no need to pass width/height here, `sim` has that info
 pub fn add_uniform_points(sim: &mut Simulation, count: usize, width: f64, height: f64) {
     let mut rng = rand::rng();
 
