@@ -104,10 +104,13 @@ impl Simulation {
                         for idx2 in v {
                             let pt2 = &self.particles[*idx2];
 
-                            // restrict attention to neighbors within SMOOTHING_RADIUS, excluding self
+                            // restrict attention to neighbors within SMOOTHING_RADIUS, excluding self,
+                            // NOTE: using newton's third law, we can also eliminate
+                            // the case where idx1 > idx2, and assign the force for
+                            // idx2 as the negative of the force at idx1
                             let disp = (pt.x() - pt2.x(), pt.y() - pt2.y());
                             let dist = (disp.0.powi(2) + disp.1.powi(2)).sqrt();
-                            if idx1 == *idx2 || dist > SMOOTHING_RADIUS || dist <= 0. {
+                            if idx1 >= *idx2 || dist > SMOOTHING_RADIUS || dist <= 0. {
                                 continue;
                             }
 
@@ -119,6 +122,8 @@ impl Simulation {
 
                             forces[idx1].0 += pressure_force_coeff * disp.0 / dist;
                             forces[idx1].1 += pressure_force_coeff * disp.1 / dist;
+                            forces[*idx2].0 -= pressure_force_coeff * disp.0 / dist;
+                            forces[*idx2].1 -= pressure_force_coeff * disp.1 / dist;
 
                             // viscosity force
                             let vel_diff = (pt2.vel_x() - pt.vel_x(), pt2.vel_y() - pt.vel_y());
@@ -128,6 +133,8 @@ impl Simulation {
 
                             forces[idx1].0 += visc_force_coeff * vel_diff.0;
                             forces[idx1].1 += visc_force_coeff * vel_diff.1;
+                            forces[*idx2].0 -= visc_force_coeff * vel_diff.0;
+                            forces[*idx2].1 -= visc_force_coeff * vel_diff.1;
                         }
                     }
                 }
