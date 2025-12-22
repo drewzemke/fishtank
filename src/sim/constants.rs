@@ -10,6 +10,8 @@ pub const COLLISION_RADIUS: f64 = 1.;
 // fluid sim
 pub const SMOOTHING_RADIUS: f64 = 2.;
 
+pub const SMOOTHING_RADIUS_SQ: f64 = SMOOTHING_RADIUS * SMOOTHING_RADIUS;
+
 pub const PARTICLE_MASS: f64 = 1.;
 
 pub const TARGET_DENSITY: f64 = 0.5;

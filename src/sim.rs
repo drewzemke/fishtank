@@ -5,7 +5,8 @@ use particle::Particle;
 
 use crate::sim::{
     constants::{
-        CELL_SIZE, GRAVITY, PARTICLE_MASS, SMOOTHING_RADIUS, STIFFNESS, TARGET_DENSITY, VISCOSITY,
+        CELL_SIZE, GRAVITY, PARTICLE_MASS, SMOOTHING_RADIUS, SMOOTHING_RADIUS_SQ, STIFFNESS,
+        TARGET_DENSITY, VISCOSITY,
     },
     kernels::{poly6, spiky_grad, visc_laplacian},
 };
@@ -20,7 +21,6 @@ pub struct Simulation {
     width: f64,
     height: f64,
     particles: Vec<Particle>,
-    spatial_hash: HashMap<(i64, i64), Vec<usize>>, // maps cell to indices
 }
 
 impl Simulation {
@@ -29,7 +29,6 @@ impl Simulation {
             width,
             height,
             particles: Vec::new(),
-            spatial_hash: HashMap::new(),
         }
     }
 
@@ -50,8 +49,9 @@ impl Simulation {
             .collect::<Vec<_>>();
 
         // hash particle positions into cells
+        let mut spatial_hash: HashMap<(i64, i64), Vec<usize>> = HashMap::new();
         for (idx, key) in keys.iter().enumerate() {
-            self.spatial_hash
+            spatial_hash
                 .entry(*key)
                 .and_modify(|v| v.push(idx))
                 .or_insert_with(|| Vec::from([idx]));
@@ -67,13 +67,13 @@ impl Simulation {
             for x_offset in [-1, 0, 1] {
                 for y_offset in [-1, 0, 1] {
                     let key = (key.0 + x_offset, key.1 + y_offset);
-                    if let Some(v) = self.spatial_hash.get(&key) {
+                    if let Some(v) = spatial_hash.get(&key) {
                         for idx2 in v {
                             let pt2 = &self.particles[*idx2];
 
                             // restrict attention to neighbors within SMOOTHING_RADIUS
                             let sq_dist = (pt.x() - pt2.x()).powi(2) + (pt.y() - pt2.y()).powi(2);
-                            if sq_dist > SMOOTHING_RADIUS.powi(2) {
+                            if sq_dist > SMOOTHING_RADIUS_SQ {
                                 continue;
                             }
 
@@ -100,7 +100,7 @@ impl Simulation {
             for x_offset in [-1, 0, 1] {
                 for y_offset in [-1, 0, 1] {
                     let key = (key.0 + x_offset, key.1 + y_offset);
-                    if let Some(v) = self.spatial_hash.get(&key) {
+                    if let Some(v) = spatial_hash.get(&key) {
                         for idx2 in v {
                             let pt2 = &self.particles[*idx2];
 
@@ -118,12 +118,12 @@ impl Simulation {
                             let pressure_force_coeff = -PARTICLE_MASS
                                 * (pressures[idx1] + pressures[*idx2])
                                 * spiky_grad(dist)
-                                / (2. * densities[*idx2]);
+                                / (2. * densities[*idx2] * dist);
 
-                            forces[idx1].0 += pressure_force_coeff * disp.0 / dist;
-                            forces[idx1].1 += pressure_force_coeff * disp.1 / dist;
-                            forces[*idx2].0 -= pressure_force_coeff * disp.0 / dist;
-                            forces[*idx2].1 -= pressure_force_coeff * disp.1 / dist;
+                            forces[idx1].0 += pressure_force_coeff * disp.0;
+                            forces[idx1].1 += pressure_force_coeff * disp.1;
+                            forces[*idx2].0 -= pressure_force_coeff * disp.0;
+                            forces[*idx2].1 -= pressure_force_coeff * disp.1;
 
                             // viscosity force
                             let vel_diff = (pt2.vel_x() - pt.vel_x(), pt2.vel_y() - pt.vel_y());
@@ -149,8 +149,6 @@ impl Simulation {
             p.update_pos(dt_secs);
             Self::apply_boundaries(p, self.width, self.height);
         }
-
-        self.spatial_hash.drain();
     }
 
     fn apply_boundaries(particle: &mut Particle, width: f64, height: f64) {

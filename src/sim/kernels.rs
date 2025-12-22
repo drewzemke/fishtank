@@ -1,6 +1,6 @@
 use std::f64::consts::PI;
 
-use crate::sim::constants::SMOOTHING_RADIUS;
+use crate::sim::constants::{SMOOTHING_RADIUS, SMOOTHING_RADIUS_SQ};
 
 // can't do SMOOTHING_RADIUS.powi(9) in const so I made a mess instead
 const POLY6_COEFF: f64 = 315.
@@ -17,7 +17,7 @@ const POLY6_COEFF: f64 = 315.
         * SMOOTHING_RADIUS);
 
 pub fn poly6(sq_dist: f64) -> f64 {
-    POLY6_COEFF * (SMOOTHING_RADIUS.powi(2) - sq_dist).powi(3)
+    POLY6_COEFF * (SMOOTHING_RADIUS_SQ - sq_dist).powi(3)
 }
 
 // same
