@@ -38,14 +38,21 @@ impl Simulation {
     }
 
     pub fn update(&mut self, dt_secs: f64) {
+        let keys = self
+            .particles
+            .iter()
+            .map(|particle| {
+                (
+                    (particle.x() / CELL_SIZE).floor() as i64,
+                    (particle.y() / CELL_SIZE).floor() as i64,
+                )
+            })
+            .collect::<Vec<_>>();
+
         // hash particle positions into cells
-        for (idx, particle) in self.particles.iter().enumerate() {
-            let key = (
-                (particle.x() / CELL_SIZE).floor() as i64,
-                (particle.y() / CELL_SIZE).floor() as i64,
-            );
+        for (idx, key) in keys.iter().enumerate() {
             self.spatial_hash
-                .entry(key)
+                .entry(*key)
                 .and_modify(|v| v.push(idx))
                 .or_insert_with(|| Vec::from([idx]));
         }
@@ -54,10 +61,7 @@ impl Simulation {
         let mut densities = vec![0.; self.particles.len()];
 
         for (idx1, pt) in self.particles.iter().enumerate() {
-            let key = (
-                (pt.x() / CELL_SIZE).floor() as i64,
-                (pt.y() / CELL_SIZE).floor() as i64,
-            );
+            let key = keys[idx1];
 
             // only do computations in neighboring cells
             for x_offset in [-1, 0, 1] {
@@ -90,10 +94,7 @@ impl Simulation {
         let mut forces = vec![(0., -GRAVITY); self.particles.len()];
 
         for (idx1, pt) in self.particles.iter().enumerate() {
-            let key = (
-                (pt.x() / CELL_SIZE).floor() as i64,
-                (pt.y() / CELL_SIZE).floor() as i64,
-            );
+            let key = keys[idx1];
 
             // only do computations in neighboring cells
             for x_offset in [-1, 0, 1] {
