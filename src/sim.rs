@@ -7,8 +7,8 @@ use particle::Particle;
 
 use crate::sim::{
     constants::{
-        CELL_SIZE, GRAVITY, PARTICLE_MASS, SMOOTHING_RADIUS, SMOOTHING_RADIUS_SQ, STIFFNESS,
-        TARGET_DENSITY, VISCOSITY,
+        CELL_SIZE, GRAVITY, MOUSE_FORCE_RADIUS, MOUSE_FORCE_STRENGTH, PARTICLE_MASS,
+        SMOOTHING_RADIUS, SMOOTHING_RADIUS_SQ, STIFFNESS, TARGET_DENSITY, VISCOSITY,
     },
     kernels::{poly6, spiky_grad, visc_laplacian},
 };
@@ -21,11 +21,20 @@ pub mod seed;
 
 type GridPoint = (i64, i64);
 
+pub enum MouseForce {
+    Positive { x: f64, y: f64 },
+    Negative { x: f64, y: f64 },
+    None,
+}
+
 pub struct Simulation {
     width: f64,
     height: f64,
 
     particles: Vec<Particle>,
+
+    // FIXME: make this private
+    pub mouse_force: MouseForce,
 
     last_frame_ms: f64,
 }
@@ -36,6 +45,7 @@ impl Simulation {
             width,
             height,
             particles: Vec::new(),
+            mouse_force: MouseForce::None,
             last_frame_ms: 0.,
         }
     }
@@ -181,6 +191,31 @@ impl Simulation {
                             }
                         }
                     }
+                }
+
+                // include mouse force
+                match self.mouse_force {
+                    MouseForce::Positive { x, y } => {
+                        let disp = (pt.x() - x, pt.y() - y);
+                        let dist = (disp.0.powi(2) + disp.1.powi(2)).sqrt();
+                        let coeff = MOUSE_FORCE_STRENGTH * (MOUSE_FORCE_RADIUS - dist).max(0.)
+                            / densities[idx1];
+
+                        // positive pressue => push away from the center
+                        force.0 += coeff * disp.0;
+                        force.1 += coeff * disp.1;
+                    }
+                    MouseForce::Negative { x, y } => {
+                        let disp = (pt.x() - x, pt.y() - y);
+                        let dist = (disp.0.powi(2) + disp.1.powi(2)).sqrt();
+                        let coeff = MOUSE_FORCE_STRENGTH * (MOUSE_FORCE_RADIUS - dist).max(0.)
+                            / densities[idx1];
+
+                        // negative pressue => push towards the center
+                        force.0 -= coeff * disp.0;
+                        force.1 -= coeff * disp.1;
+                    }
+                    MouseForce::None => {}
                 }
 
                 force

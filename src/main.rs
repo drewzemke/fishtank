@@ -11,11 +11,7 @@ use crossterm::{
 };
 use fishtank::{
     render::Renderer,
-    sim::{
-        Simulation,
-        runner::run_sim_loop,
-        seed::{add_dense_square, add_uniform_points},
-    },
+    sim::{MouseForce, Simulation, runner::run_sim_loop, seed::add_uniform_points},
 };
 
 fn main() -> anyhow::Result<()> {
@@ -49,7 +45,7 @@ fn main() -> anyhow::Result<()> {
     });
 
     loop {
-        if crossterm::event::poll(std::time::Duration::from_millis(20))? {
+        if crossterm::event::poll(std::time::Duration::from_millis(10))? {
             let event = crossterm::event::read()?;
 
             match event {
@@ -61,9 +57,30 @@ fn main() -> anyhow::Result<()> {
                 }
                 crossterm::event::Event::Mouse(event) => {
                     let mut sim = sim.lock().unwrap();
-                    if matches!(event.kind, MouseEventKind::Down(..)) {
-                        let center = (event.column as f64, event.row as f64 * 2.);
-                        add_dense_square(&mut sim, center, 20);
+                    match event.kind {
+                        MouseEventKind::Down(btn) | MouseEventKind::Drag(btn) => {
+                            let center = (event.column as f64, event.row as f64 * 2.);
+
+                            match btn {
+                                crossterm::event::MouseButton::Left => {
+                                    sim.mouse_force = MouseForce::Positive {
+                                        x: center.0,
+                                        y: center.1,
+                                    }
+                                }
+                                crossterm::event::MouseButton::Right => {
+                                    sim.mouse_force = MouseForce::Negative {
+                                        x: center.0,
+                                        y: center.1,
+                                    }
+                                }
+                                crossterm::event::MouseButton::Middle => {}
+                            }
+                        }
+                        MouseEventKind::Up(..) => {
+                            sim.mouse_force = MouseForce::None;
+                        }
+                        _ => {}
                     }
                 }
                 _ => {}
