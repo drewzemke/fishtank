@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use rayon::prelude::*;
+
 use constants::DAMPENING;
 use particle::Particle;
 
@@ -58,31 +60,38 @@ impl Simulation {
         }
 
         // density computation
-        let mut densities = vec![0.; self.particles.len()];
+        let densities = self
+            .particles
+            .par_iter()
+            .enumerate()
+            .map(|(idx1, pt)| {
+                let key = keys[idx1];
+                let mut density = 0.;
 
-        for (idx1, pt) in self.particles.iter().enumerate() {
-            let key = keys[idx1];
+                // only do computations in neighboring cells
+                for x_offset in [-1, 0, 1] {
+                    for y_offset in [-1, 0, 1] {
+                        let key = (key.0 + x_offset, key.1 + y_offset);
+                        if let Some(v) = spatial_hash.get(&key) {
+                            for idx2 in v {
+                                let pt2 = &self.particles[*idx2];
 
-            // only do computations in neighboring cells
-            for x_offset in [-1, 0, 1] {
-                for y_offset in [-1, 0, 1] {
-                    let key = (key.0 + x_offset, key.1 + y_offset);
-                    if let Some(v) = spatial_hash.get(&key) {
-                        for idx2 in v {
-                            let pt2 = &self.particles[*idx2];
+                                // restrict attention to neighbors within SMOOTHING_RADIUS
+                                let sq_dist =
+                                    (pt.x() - pt2.x()).powi(2) + (pt.y() - pt2.y()).powi(2);
+                                if sq_dist > SMOOTHING_RADIUS_SQ {
+                                    continue;
+                                }
 
-                            // restrict attention to neighbors within SMOOTHING_RADIUS
-                            let sq_dist = (pt.x() - pt2.x()).powi(2) + (pt.y() - pt2.y()).powi(2);
-                            if sq_dist > SMOOTHING_RADIUS_SQ {
-                                continue;
+                                density += PARTICLE_MASS * poly6(sq_dist);
                             }
-
-                            densities[idx1] += PARTICLE_MASS * poly6(sq_dist);
                         }
                     }
                 }
-            }
-        }
+
+                density
+            })
+            .collect::<Vec<_>>();
 
         // pressure computation
         let pressures = densities
@@ -91,55 +100,58 @@ impl Simulation {
             .collect::<Vec<_>>();
 
         // force computation
-        let mut forces = vec![(0., -GRAVITY); self.particles.len()];
+        let forces = self
+            .particles
+            .par_iter()
+            .enumerate()
+            .map(|(idx1, pt)| {
+                let key = keys[idx1];
+                let mut force = (0., -GRAVITY);
 
-        for (idx1, pt) in self.particles.iter().enumerate() {
-            let key = keys[idx1];
+                // only do computations in neighboring cells
+                for x_offset in [-1, 0, 1] {
+                    for y_offset in [-1, 0, 1] {
+                        let key = (key.0 + x_offset, key.1 + y_offset);
+                        if let Some(v) = spatial_hash.get(&key) {
+                            for idx2 in v {
+                                let pt2 = &self.particles[*idx2];
 
-            // only do computations in neighboring cells
-            for x_offset in [-1, 0, 1] {
-                for y_offset in [-1, 0, 1] {
-                    let key = (key.0 + x_offset, key.1 + y_offset);
-                    if let Some(v) = spatial_hash.get(&key) {
-                        for idx2 in v {
-                            let pt2 = &self.particles[*idx2];
+                                // restrict attention to neighbors within SMOOTHING_RADIUS, excluding self,
+                                // NOTE: using newton's third law, we can also eliminate
+                                // the case where idx1 > idx2, and assign the force for
+                                // idx2 as the negative of the force at idx1
+                                let disp = (pt.x() - pt2.x(), pt.y() - pt2.y());
+                                let dist = (disp.0.powi(2) + disp.1.powi(2)).sqrt();
+                                if idx1 == *idx2 || dist > SMOOTHING_RADIUS || dist <= 0. {
+                                    continue;
+                                }
 
-                            // restrict attention to neighbors within SMOOTHING_RADIUS, excluding self,
-                            // NOTE: using newton's third law, we can also eliminate
-                            // the case where idx1 > idx2, and assign the force for
-                            // idx2 as the negative of the force at idx1
-                            let disp = (pt.x() - pt2.x(), pt.y() - pt2.y());
-                            let dist = (disp.0.powi(2) + disp.1.powi(2)).sqrt();
-                            if idx1 >= *idx2 || dist > SMOOTHING_RADIUS || dist <= 0. {
-                                continue;
+                                // pressure force
+                                let pressure_force_coeff = -PARTICLE_MASS
+                                    * (pressures[idx1] + pressures[*idx2])
+                                    * spiky_grad(dist)
+                                    / (2. * densities[*idx2] * dist);
+
+                                force.0 += pressure_force_coeff * disp.0;
+                                force.1 += pressure_force_coeff * disp.1;
+
+                                // viscosity force
+                                let vel_diff = (pt2.vel_x() - pt.vel_x(), pt2.vel_y() - pt.vel_y());
+
+                                let visc_force_coeff =
+                                    VISCOSITY * PARTICLE_MASS * visc_laplacian(dist)
+                                        / densities[*idx2];
+
+                                force.0 += visc_force_coeff * vel_diff.0;
+                                force.1 += visc_force_coeff * vel_diff.1;
                             }
-
-                            // pressure force
-                            let pressure_force_coeff = -PARTICLE_MASS
-                                * (pressures[idx1] + pressures[*idx2])
-                                * spiky_grad(dist)
-                                / (2. * densities[*idx2] * dist);
-
-                            forces[idx1].0 += pressure_force_coeff * disp.0;
-                            forces[idx1].1 += pressure_force_coeff * disp.1;
-                            forces[*idx2].0 -= pressure_force_coeff * disp.0;
-                            forces[*idx2].1 -= pressure_force_coeff * disp.1;
-
-                            // viscosity force
-                            let vel_diff = (pt2.vel_x() - pt.vel_x(), pt2.vel_y() - pt.vel_y());
-
-                            let visc_force_coeff =
-                                VISCOSITY * PARTICLE_MASS * visc_laplacian(dist) / densities[*idx2];
-
-                            forces[idx1].0 += visc_force_coeff * vel_diff.0;
-                            forces[idx1].1 += visc_force_coeff * vel_diff.1;
-                            forces[*idx2].0 -= visc_force_coeff * vel_diff.0;
-                            forces[*idx2].1 -= visc_force_coeff * vel_diff.1;
                         }
                     }
                 }
-            }
-        }
+
+                force
+            })
+            .collect::<Vec<_>>();
 
         // apply forces and move particles
         for (idx, p) in self.particles.iter_mut().enumerate() {

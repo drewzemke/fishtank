@@ -293,6 +293,7 @@ dependencies = [
  "criterion",
  "crossterm",
  "rand",
+ "rayon",
 ]
 
 [[package]]
