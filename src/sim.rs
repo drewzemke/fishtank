@@ -56,7 +56,7 @@ impl Simulation {
         // pressure computation
         let pressures = densities
             .iter()
-            .map(|d| STIFFNESS * (TARGET_DENSITY - d))
+            .map(|d| (STIFFNESS * (d - TARGET_DENSITY)).max(0.))
             .collect::<Vec<_>>();
 
         // force computation
@@ -161,7 +161,7 @@ impl Simulation {
                                 }
 
                                 // pressure force
-                                let pressure_force_coeff = -PARTICLE_MASS
+                                let pressure_force_coeff = PARTICLE_MASS
                                     * (pressures[idx1] + pressures[*idx2])
                                     * spiky_grad(dist)
                                     / (2. * densities[*idx2] * dist);
