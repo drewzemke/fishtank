@@ -15,3 +15,7 @@ criterion = "0.8.1"
 [[bench]]
 name = "sim_benchmark"
 harness = false
+
+[[bench]]
+name = "render_benchmark"
+harness = false
