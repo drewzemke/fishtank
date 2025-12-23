@@ -24,7 +24,10 @@ type GridPoint = (i64, i64);
 pub struct Simulation {
     width: f64,
     height: f64,
+
     particles: Vec<Particle>,
+
+    last_frame_ms: f64,
 }
 
 impl Simulation {
@@ -33,6 +36,7 @@ impl Simulation {
             width,
             height,
             particles: Vec::new(),
+            last_frame_ms: 0.,
         }
     }
 
@@ -41,6 +45,8 @@ impl Simulation {
     }
 
     pub fn update(&mut self, dt_secs: f64) {
+        let start_time = std::time::Instant::now();
+
         // hash particles into a grid
         let (keys, spatial_hash) = self.build_hash();
 
@@ -58,6 +64,10 @@ impl Simulation {
 
         // apply forces and move particles
         self.apply_forces(dt_secs, densities, forces);
+
+        // compute time
+        let time = start_time.elapsed().as_secs_f64();
+        self.last_frame_ms = time * 1000.;
     }
 
     fn build_hash(&mut self) -> (Vec<GridPoint>, HashMap<GridPoint, Vec<usize>>) {
@@ -212,5 +222,9 @@ impl Simulation {
 
     pub fn particles(&self) -> &[Particle] {
         &self.particles
+    }
+
+    pub fn last_frame_ms(&self) -> f64 {
+        self.last_frame_ms
     }
 }

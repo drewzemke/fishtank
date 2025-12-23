@@ -88,13 +88,17 @@ fn main() -> anyhow::Result<()> {
             stdout.write_all(output.as_bytes())?;
 
             if framerate >= 0. {
-                let framerate = format!("{framerate:.1} FPS");
+                let particle_count = format!("{} particles", sim.particles().len());
                 execute!(stdout, MoveTo(0, 0))?;
+                stdout.write_all(particle_count.as_bytes())?;
+
+                let framerate = format!("{framerate:.1} FPS");
+                execute!(stdout, MoveTo(0, 1))?;
                 stdout.write_all(framerate.as_bytes())?;
 
-                let particle_count = format!("{} particles", sim.particles().len());
-                execute!(stdout, MoveTo(0, 1))?;
-                stdout.write_all(particle_count.as_bytes())?;
+                let framerate = format!("Sim: {:.1} ms", sim.last_frame_ms());
+                execute!(stdout, MoveTo(0, 2))?;
+                stdout.write_all(framerate.as_bytes())?;
             }
         }
 
