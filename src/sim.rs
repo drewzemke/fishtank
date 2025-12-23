@@ -19,6 +19,8 @@ mod particle;
 pub mod runner;
 pub mod seed;
 
+type GridPoint = (i64, i64);
+
 pub struct Simulation {
     width: f64,
     height: f64,
@@ -39,6 +41,26 @@ impl Simulation {
     }
 
     pub fn update(&mut self, dt_secs: f64) {
+        // hash particles into a grid
+        let (keys, spatial_hash) = self.build_hash();
+
+        // density computation
+        let densities = self.compute_densities(&keys, &spatial_hash);
+
+        // pressure computation
+        let pressures = densities
+            .iter()
+            .map(|d| STIFFNESS * (TARGET_DENSITY - d))
+            .collect::<Vec<_>>();
+
+        // force computation
+        let forces = self.compute_forces(keys, spatial_hash, &densities, pressures);
+
+        // apply forces and move particles
+        self.apply_forces(dt_secs, densities, forces);
+    }
+
+    fn build_hash(&mut self) -> (Vec<GridPoint>, HashMap<GridPoint, Vec<usize>>) {
         let keys = self
             .particles
             .iter()
@@ -58,10 +80,15 @@ impl Simulation {
                 .and_modify(|v| v.push(idx))
                 .or_insert_with(|| Vec::from([idx]));
         }
+        (keys, spatial_hash)
+    }
 
-        // density computation
-        let densities = self
-            .particles
+    fn compute_densities(
+        &mut self,
+        keys: &[(i64, i64)],
+        spatial_hash: &HashMap<(i64, i64), Vec<usize>>,
+    ) -> Vec<f64> {
+        self.particles
             .par_iter()
             .enumerate()
             .map(|(idx1, pt)| {
@@ -91,17 +118,17 @@ impl Simulation {
 
                 density
             })
-            .collect::<Vec<_>>();
+            .collect::<Vec<_>>()
+    }
 
-        // pressure computation
-        let pressures = densities
-            .iter()
-            .map(|d| STIFFNESS * (TARGET_DENSITY - d))
-            .collect::<Vec<_>>();
-
-        // force computation
-        let forces = self
-            .particles
+    fn compute_forces(
+        &mut self,
+        keys: Vec<(i64, i64)>,
+        spatial_hash: HashMap<(i64, i64), Vec<usize>>,
+        densities: &[f64],
+        pressures: Vec<f64>,
+    ) -> Vec<(f64, f64)> {
+        self.particles
             .par_iter()
             .enumerate()
             .map(|(idx1, pt)| {
@@ -117,9 +144,6 @@ impl Simulation {
                                 let pt2 = &self.particles[*idx2];
 
                                 // restrict attention to neighbors within SMOOTHING_RADIUS, excluding self,
-                                // NOTE: using newton's third law, we can also eliminate
-                                // the case where idx1 > idx2, and assign the force for
-                                // idx2 as the negative of the force at idx1
                                 let disp = (pt.x() - pt2.x(), pt.y() - pt2.y());
                                 let dist = (disp.0.powi(2) + disp.1.powi(2)).sqrt();
                                 if idx1 == *idx2 || dist > SMOOTHING_RADIUS || dist <= 0. {
@@ -151,9 +175,10 @@ impl Simulation {
 
                 force
             })
-            .collect::<Vec<_>>();
+            .collect::<Vec<_>>()
+    }
 
-        // apply forces and move particles
+    fn apply_forces(&mut self, dt_secs: f64, densities: Vec<f64>, forces: Vec<(f64, f64)>) {
         for (idx, p) in self.particles.iter_mut().enumerate() {
             let density = densities[idx];
             let force = (forces[idx].0 / density, forces[idx].1 / density);
