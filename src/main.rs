@@ -11,7 +11,7 @@ use crossterm::{
 };
 use fishtank::{
     render::Renderer,
-    sim::{Simulation, runner::run_sim_loop, seed::add_uniform_points},
+    sim::{Simulation, runner::run_sim_loop, seed::add_uniform_points, settings::Settings},
 };
 
 fn main() -> anyhow::Result<()> {
@@ -32,6 +32,7 @@ fn main() -> anyhow::Result<()> {
     add_uniform_points(&mut sim, 10000, cols as f64, rows as f64 * 2.0);
 
     let sim = Arc::new(Mutex::new(sim));
+    let settings = Arc::new(Mutex::new(Settings::default()));
 
     // used to compute framerate
     let mut frames = 0;
@@ -40,8 +41,9 @@ fn main() -> anyhow::Result<()> {
 
     // start the sim
     let sim_clone = sim.clone();
+    let settings_clone = settings.clone();
     std::thread::spawn(move || {
-        run_sim_loop(sim_clone);
+        run_sim_loop(sim_clone, settings_clone);
     });
 
     loop {

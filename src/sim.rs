@@ -19,7 +19,7 @@ mod param;
 mod particle;
 pub mod runner;
 pub mod seed;
-mod settings;
+pub mod settings;
 
 type GridPoint = (i64, i64);
 
@@ -53,8 +53,6 @@ pub struct Simulation {
     pub mouse_force: MouseForce,
 
     last_frame_ms: f64,
-
-    settings: Settings,
 }
 
 impl Simulation {
@@ -65,7 +63,6 @@ impl Simulation {
             particles: Vec::new(),
             mouse_force: MouseForce::None,
             last_frame_ms: 0.,
-            settings: Settings::default(),
         }
     }
 
@@ -73,7 +70,7 @@ impl Simulation {
         self.particles.push(Particle::new(x, y, 0., 0.));
     }
 
-    pub fn update(&mut self, dt_secs: f64) {
+    pub fn update(&mut self, dt_secs: f64, settings: &Settings) {
         let start_time = std::time::Instant::now();
 
         // hash particles into a grid
@@ -89,13 +86,13 @@ impl Simulation {
             .collect::<Vec<_>>();
 
         // force computation
-        let forces = self.compute_forces(keys, spatial_hash, &densities, pressures);
+        let forces = self.compute_forces(keys, spatial_hash, &densities, pressures, settings);
 
         // apply forces to move particles
         self.apply_forces(dt_secs, densities, forces);
 
         // apply boundaries
-        self.apply_boundaries();
+        self.apply_boundaries(settings);
 
         // compute time
         let time = start_time.elapsed().as_secs_f64();
@@ -169,8 +166,9 @@ impl Simulation {
         spatial_hash: HashMap<(i64, i64), Vec<usize>>,
         densities: &[f64],
         pressures: Vec<f64>,
+        settings: &Settings,
     ) -> Vec<(f64, f64)> {
-        let gravity = self.settings.gravity();
+        let gravity = settings.gravity();
 
         self.particles
             .par_iter()
@@ -263,10 +261,10 @@ impl Simulation {
         }
     }
 
-    fn apply_boundaries(&mut self) {
+    fn apply_boundaries(&mut self, settings: &Settings) {
         let width = self.width;
         let height = self.height;
-        let dampening = self.settings.dampening();
+        let dampening = settings.dampening();
 
         for particle in self.particles.iter_mut() {
             if particle.x() < 0. {
