@@ -1,10 +1,5 @@
 pub const TIMESTEP_MS: u64 = 5;
 
-pub const GRAVITY: f64 = 15.;
-
-// collision model
-pub const DAMPENING: f64 = 0.01;
-
 // fluid sim
 pub const SMOOTHING_RADIUS: f64 = 2.;
 

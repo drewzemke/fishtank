@@ -2,15 +2,15 @@ use std::collections::HashMap;
 
 use rayon::prelude::*;
 
-use constants::DAMPENING;
 use particle::Particle;
 
 use crate::sim::{
     constants::{
-        CELL_SIZE, GRAVITY, MOUSE_FORCE_RADIUS, MOUSE_FORCE_STRENGTH, PARTICLE_MASS,
-        SMOOTHING_RADIUS, SMOOTHING_RADIUS_SQ, STIFFNESS, TARGET_DENSITY, VISCOSITY,
+        CELL_SIZE, MOUSE_FORCE_RADIUS, MOUSE_FORCE_STRENGTH, PARTICLE_MASS, SMOOTHING_RADIUS,
+        SMOOTHING_RADIUS_SQ, STIFFNESS, TARGET_DENSITY, VISCOSITY,
     },
     kernels::{poly6, spiky_grad, visc_laplacian},
+    settings::Settings,
 };
 
 mod constants;
@@ -19,6 +19,7 @@ mod param;
 mod particle;
 pub mod runner;
 pub mod seed;
+mod settings;
 
 type GridPoint = (i64, i64);
 
@@ -52,6 +53,8 @@ pub struct Simulation {
     pub mouse_force: MouseForce,
 
     last_frame_ms: f64,
+
+    settings: Settings,
 }
 
 impl Simulation {
@@ -62,6 +65,7 @@ impl Simulation {
             particles: Vec::new(),
             mouse_force: MouseForce::None,
             last_frame_ms: 0.,
+            settings: Settings::default(),
         }
     }
 
@@ -87,8 +91,11 @@ impl Simulation {
         // force computation
         let forces = self.compute_forces(keys, spatial_hash, &densities, pressures);
 
-        // apply forces and move particles
+        // apply forces to move particles
         self.apply_forces(dt_secs, densities, forces);
+
+        // apply boundaries
+        self.apply_boundaries();
 
         // compute time
         let time = start_time.elapsed().as_secs_f64();
@@ -163,12 +170,14 @@ impl Simulation {
         densities: &[f64],
         pressures: Vec<f64>,
     ) -> Vec<(f64, f64)> {
+        let gravity = self.settings.gravity();
+
         self.particles
             .par_iter()
             .enumerate()
             .map(|(idx1, pt)| {
                 let key = keys[idx1];
-                let mut force = (0., -GRAVITY);
+                let mut force = (0., -gravity);
 
                 // only do computations in neighboring cells
                 for x_offset in [-1, 0, 1] {
@@ -251,29 +260,34 @@ impl Simulation {
             let force = (forces[idx].0 / density, forces[idx].1 / density);
             p.update_vel(force, dt_secs);
             p.update_pos(dt_secs);
-            Self::apply_boundaries(p, self.width, self.height);
         }
     }
 
-    fn apply_boundaries(particle: &mut Particle, width: f64, height: f64) {
-        if particle.x() < 0. {
-            particle.set_x(-particle.x());
-            particle.vel.0 *= -DAMPENING;
-        }
+    fn apply_boundaries(&mut self) {
+        let width = self.width;
+        let height = self.height;
+        let dampening = self.settings.dampening();
 
-        if particle.y() < 0. {
-            particle.set_y(-particle.y());
-            particle.vel.1 *= -DAMPENING;
-        }
+        for particle in self.particles.iter_mut() {
+            if particle.x() < 0. {
+                particle.set_x(-particle.x());
+                particle.vel.0 *= -dampening;
+            }
 
-        if particle.x() > width {
-            particle.set_x(width - (particle.x() - width));
-            particle.vel.0 *= -DAMPENING;
-        }
+            if particle.y() < 0. {
+                particle.set_y(-particle.y());
+                particle.vel.1 *= -dampening;
+            }
 
-        if particle.y() > height {
-            particle.set_y(height - (particle.y() - height));
-            particle.vel.1 *= -DAMPENING;
+            if particle.x() > width {
+                particle.set_x(width - (particle.x() - width));
+                particle.vel.0 *= -dampening;
+            }
+
+            if particle.y() > height {
+                particle.set_y(height - (particle.y() - height));
+                particle.vel.1 *= -dampening;
+            }
         }
     }
 
