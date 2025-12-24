@@ -15,6 +15,7 @@ use crate::sim::{
 
 mod constants;
 mod kernels;
+mod param;
 mod particle;
 pub mod runner;
 pub mod seed;
