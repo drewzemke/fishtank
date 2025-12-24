@@ -26,4 +26,4 @@ pub const MOUSE_FORCE_STRENGTH: f64 = 3.;
 pub const MOUSE_FORCE_RADIUS: f64 = 15.;
 
 // spatial hashing
-pub const CELL_SIZE: f64 = SMOOTHING_RADIUS;
+pub const CELL_SIZE: f64 = 0.9 * SMOOTHING_RADIUS;

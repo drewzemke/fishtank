@@ -1,5 +1,7 @@
 use crate::sim::Simulation;
 
+const DITHER_RADIUS: f64 = 0.5;
+
 pub struct Renderer {
     last: String,
     rows: usize,
@@ -18,9 +20,18 @@ impl Renderer {
     pub fn render(&mut self, sim: &Simulation) -> &str {
         let mut output = vec![vec![Some(0u8); self.cols]; self.rows];
 
-        for particle in sim.particles() {
-            let row = particle.y() as usize / 2;
-            let col = particle.x() as usize;
+        for (i, particle) in sim.particles().iter().enumerate() {
+            // spatial dithering: add small deterministic offset to break up moiré patterns
+            // hash-based offset ensures no flickering while disrupting grid alignment
+            let hash = i.wrapping_mul(2654435761) ^ (i >> 16);
+            let dx = ((hash & 0xFF) as f64 / 255.0 - 0.5) * DITHER_RADIUS;
+            let dy = (((hash >> 8) & 0xFF) as f64 / 255.0 - 0.5) * DITHER_RADIUS;
+
+            let x = particle.x() + dx;
+            let y = particle.y() + dy;
+
+            let row = y as usize / 2;
+            let col = x as usize;
 
             if row >= self.rows || col >= self.cols {
                 continue;
@@ -37,8 +48,8 @@ impl Renderer {
             // so we use the position of the particle within the cell to
             // compute which row/column of that grid it's in, then OR that bit
             // into this cell's running value
-            let x_half = (particle.x().fract() >= 0.5) as u8;
-            let y_quarter = (particle.y() / 2.).fract() * 4.0;
+            let x_half = (x.fract() >= 0.5) as u8;
+            let y_quarter = (y / 2.).fract() * 4.0;
             let bit = (y_quarter as u8) + x_half * 3;
             let bit = if y_quarter >= 3. { 6 + x_half } else { bit };
 
