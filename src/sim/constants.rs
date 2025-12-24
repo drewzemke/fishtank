@@ -5,8 +5,6 @@ pub const GRAVITY: f64 = 15.;
 // collision model
 pub const DAMPENING: f64 = 0.01;
 
-pub const COLLISION_RADIUS: f64 = 1.;
-
 // fluid sim
 pub const SMOOTHING_RADIUS: f64 = 2.;
 
