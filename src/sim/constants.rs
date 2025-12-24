@@ -21,7 +21,7 @@ pub const STIFFNESS: f64 = 2000.;
 pub const VISCOSITY: f64 = 2.0;
 
 // mouse interaction
-pub const MOUSE_FORCE_STRENGTH: f64 = 7.;
+pub const MOUSE_FORCE_STRENGTH: f64 = 3.;
 
 pub const MOUSE_FORCE_RADIUS: f64 = 15.;
 

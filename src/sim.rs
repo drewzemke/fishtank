@@ -27,6 +27,20 @@ pub enum MouseForce {
     None,
 }
 
+impl MouseForce {
+    pub fn reset(&mut self) {
+        *self = Self::None
+    }
+
+    pub fn set_positive(&mut self, x: f64, y: f64) {
+        *self = Self::Positive { x, y }
+    }
+
+    pub fn set_negative(&mut self, x: f64, y: f64) {
+        *self = Self::Negative { x, y }
+    }
+}
+
 pub struct Simulation {
     width: f64,
     height: f64,
@@ -196,7 +210,7 @@ impl Simulation {
                 // include mouse force
                 match self.mouse_force {
                     MouseForce::Positive { x, y } => {
-                        let disp = (pt.x() - x, pt.y() - y);
+                        let disp = (x - pt.x(), y - pt.y());
                         let dist = (disp.0.powi(2) + disp.1.powi(2)).sqrt();
                         let coeff = MOUSE_FORCE_STRENGTH * (MOUSE_FORCE_RADIUS - dist).max(0.)
                             / densities[idx1];
@@ -206,7 +220,7 @@ impl Simulation {
                         force.1 += coeff * disp.1;
                     }
                     MouseForce::Negative { x, y } => {
-                        let disp = (pt.x() - x, pt.y() - y);
+                        let disp = (x - pt.x(), y - pt.y());
                         let dist = (disp.0.powi(2) + disp.1.powi(2)).sqrt();
                         let coeff = MOUSE_FORCE_STRENGTH * (MOUSE_FORCE_RADIUS - dist).max(0.)
                             / densities[idx1];
@@ -214,6 +228,13 @@ impl Simulation {
                         // negative pressue => push towards the center
                         force.0 -= coeff * disp.0;
                         force.1 -= coeff * disp.1;
+
+                        // also push lightly against the velocity of the particle if it's close to the center
+                        // this stops the particles from oscillating wildly around the ball
+                        if dist < MOUSE_FORCE_RADIUS {
+                            force.0 -= coeff / 30.0 * pt.vel_x();
+                            force.1 -= coeff / 30.0 * pt.vel_y();
+                        }
                     }
                     MouseForce::None => {}
                 }

@@ -11,7 +11,7 @@ use crossterm::{
 };
 use fishtank::{
     render::Renderer,
-    sim::{MouseForce, Simulation, runner::run_sim_loop, seed::add_uniform_points},
+    sim::{Simulation, runner::run_sim_loop, seed::add_uniform_points},
 };
 
 fn main() -> anyhow::Result<()> {
@@ -63,22 +63,16 @@ fn main() -> anyhow::Result<()> {
 
                             match btn {
                                 crossterm::event::MouseButton::Left => {
-                                    sim.mouse_force = MouseForce::Positive {
-                                        x: center.0,
-                                        y: center.1,
-                                    }
+                                    sim.mouse_force.set_positive(center.0, center.1);
                                 }
                                 crossterm::event::MouseButton::Right => {
-                                    sim.mouse_force = MouseForce::Negative {
-                                        x: center.0,
-                                        y: center.1,
-                                    }
+                                    sim.mouse_force.set_negative(center.0, center.1);
                                 }
                                 crossterm::event::MouseButton::Middle => {}
                             }
                         }
                         MouseEventKind::Up(..) => {
-                            sim.mouse_force = MouseForce::None;
+                            sim.mouse_force.reset();
                         }
                         _ => {}
                     }
