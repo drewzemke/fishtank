@@ -24,7 +24,7 @@ fn main() -> anyhow::Result<()> {
 
     let (cols, rows) = terminal::size().unwrap();
 
-    let mut renderer = Renderer::new(rows as usize, cols as usize);
+    let renderer = Renderer::new(rows as usize, cols as usize);
 
     let mut sim = Simulation::new(cols as f64, 2. * rows as f64);
 
@@ -94,8 +94,9 @@ fn main() -> anyhow::Result<()> {
         // render
         {
             let sim = sim.lock().unwrap();
+            let settings = settings.lock().unwrap();
 
-            let output = renderer.render(&sim);
+            let output = renderer.render(&sim, &settings);
 
             execute!(stdout, MoveTo(0, 0))?;
             stdout.write_all(output.as_bytes())?;

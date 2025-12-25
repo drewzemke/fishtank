@@ -23,7 +23,7 @@ impl Settings {
         *self.dampening.value()
     }
 
-    const fn num_settings() -> usize {
+    pub const fn num_settings() -> usize {
         2
     }
 }

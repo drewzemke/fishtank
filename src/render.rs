@@ -1,23 +1,20 @@
-use crate::sim::Simulation;
+use crate::sim::{Simulation, settings::Settings};
 
 const DITHER_RADIUS: f64 = 0.5;
 
+const SETTINGS_WIDTH: usize = 20;
+
 pub struct Renderer {
-    last: String,
     rows: usize,
     cols: usize,
 }
 
 impl Renderer {
     pub fn new(rows: usize, cols: usize) -> Self {
-        Self {
-            rows,
-            cols,
-            last: String::new(),
-        }
+        Self { rows, cols }
     }
 
-    pub fn render(&mut self, sim: &Simulation) -> &str {
+    pub fn render(&self, sim: &Simulation, settings: &Settings) -> String {
         let mut output = vec![vec![Some(0u8); self.cols]; self.rows];
 
         for (i, particle) in sim.particles().iter().enumerate() {
@@ -56,18 +53,57 @@ impl Renderer {
             output[row][col] = Some(output[row][col].unwrap_or(0) | 1 << bit);
         }
 
-        self.last = output
-            .into_iter()
-            .flatten()
-            .map(|byte| match byte {
-                None => ' ',
-                Some(b) => {
-                    let v = 0x2800u32 | (b as u32);
-                    char::from_u32(v).unwrap_or(' ')
-                } // _ => {
-            })
-            .collect::<String>();
+        let settings_render = Self::render_settings(settings);
 
-        &self.last
+        output
+            .into_iter()
+            .enumerate()
+            .flat_map(|(row_idx, row)| {
+                row.into_iter().enumerate().map({
+                    // FIXME: any way to avoid this??
+                    let settings_render = settings_render.clone();
+
+                    move |(col_idx, byte)| {
+                        let var_name = match byte {
+                            None => ' ',
+                            Some(b) => {
+                                let v = 0x2800u32 | (b as u32);
+                                char::from_u32(v).unwrap_or(' ')
+                            }
+                        };
+
+                        if row_idx < Settings::num_settings()
+                            && col_idx > self.cols - SETTINGS_WIDTH
+                        {
+                            settings_render
+                                .chars()
+                                .nth(
+                                    row_idx * SETTINGS_WIDTH + col_idx - self.cols + SETTINGS_WIDTH,
+                                )
+                                .unwrap_or('X')
+                        } else {
+                            var_name
+                        }
+                    }
+                })
+            })
+            .collect::<String>()
+    }
+
+    fn render_settings(settings: &Settings) -> String {
+        let mut out = String::new();
+
+        // FIXME: can't use SETTINGS_WIDTH here?
+        out.push_str(&format!(
+            "{:>20}",
+            format!("gravity: {:.1}", settings.gravity())
+        ));
+
+        out.push_str(&format!(
+            "{:>20}",
+            format!("dampening: {:.2}", settings.dampening())
+        ));
+
+        out
     }
 }
