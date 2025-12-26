@@ -114,6 +114,24 @@ impl Renderer {
             )
         ));
 
+        out.push_str(&format!(
+            "{:>20}",
+            format!(
+                "{} density: {:.1}",
+                if selected == 2 { '>' } else { ' ' },
+                settings.target_density()
+            )
+        ));
+
+        out.push_str(&format!(
+            "{:>20}",
+            format!(
+                "{} stiffness: {:.0}",
+                if selected == 3 { '>' } else { ' ' },
+                settings.stiffness()
+            )
+        ));
+
         out
     }
 }

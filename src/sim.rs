@@ -7,7 +7,7 @@ use particle::Particle;
 use crate::sim::{
     constants::{
         CELL_SIZE, MOUSE_FORCE_RADIUS, MOUSE_FORCE_STRENGTH, PARTICLE_MASS, SMOOTHING_RADIUS,
-        SMOOTHING_RADIUS_SQ, STIFFNESS, TARGET_DENSITY, VISCOSITY,
+        SMOOTHING_RADIUS_SQ, VISCOSITY,
     },
     kernels::{poly6, spiky_grad, visc_laplacian},
     settings::Settings,
@@ -80,9 +80,11 @@ impl Simulation {
         let densities = self.compute_densities(&keys, &spatial_hash);
 
         // pressure computation
+        let target_density = settings.target_density();
+        let stiffness = settings.stiffness();
         let pressures = densities
             .iter()
-            .map(|d| (STIFFNESS * (d - TARGET_DENSITY)).max(0.))
+            .map(|d| (stiffness * (d - target_density)).max(0.))
             .collect::<Vec<_>>();
 
         // force computation

@@ -7,10 +7,6 @@ pub const SMOOTHING_RADIUS_SQ: f64 = SMOOTHING_RADIUS * SMOOTHING_RADIUS;
 
 pub const PARTICLE_MASS: f64 = 1.;
 
-pub const TARGET_DENSITY: f64 = 1.0;
-
-pub const STIFFNESS: f64 = 2000.;
-
 pub const VISCOSITY: f64 = 2.0;
 
 // mouse interaction
