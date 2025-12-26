@@ -92,16 +92,26 @@ impl Renderer {
 
     fn render_settings(settings: &Settings) -> String {
         let mut out = String::new();
+        let selected = settings.selected_idx();
 
         // FIXME: can't use SETTINGS_WIDTH here?
+
         out.push_str(&format!(
             "{:>20}",
-            format!("gravity: {:.1}", settings.gravity())
+            format!(
+                "{} gravity: {:.1}",
+                if selected == 0 { '>' } else { ' ' },
+                settings.gravity()
+            )
         ));
 
         out.push_str(&format!(
             "{:>20}",
-            format!("dampening: {:.2}", settings.dampening())
+            format!(
+                "{} dampening: {:.2}",
+                if selected == 1 { '>' } else { ' ' },
+                settings.dampening()
+            )
         ));
 
         out

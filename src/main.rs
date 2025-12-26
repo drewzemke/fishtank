@@ -52,9 +52,32 @@ fn main() -> anyhow::Result<()> {
 
             match event {
                 crossterm::event::Event::Key(event) => {
-                    if event.code == KeyCode::Char('q') {
-                        // exit the program
-                        break;
+                    match event.code {
+                        KeyCode::Char('q') => {
+                            // exit the program
+                            break;
+                        }
+                        KeyCode::Char('r') => {
+                            let mut settings = settings.lock().unwrap();
+                            settings.reset_selected();
+                        }
+                        KeyCode::Down => {
+                            let mut settings = settings.lock().unwrap();
+                            settings.select_next();
+                        }
+                        KeyCode::Up => {
+                            let mut settings = settings.lock().unwrap();
+                            settings.select_prev();
+                        }
+                        KeyCode::Right => {
+                            let mut settings = settings.lock().unwrap();
+                            settings.inc_selected();
+                        }
+                        KeyCode::Left => {
+                            let mut settings = settings.lock().unwrap();
+                            settings.dec_selected();
+                        }
+                        _ => {}
                     }
                 }
                 crossterm::event::Event::Mouse(event) => {

@@ -45,7 +45,7 @@ where
 
 impl<T> Param<T>
 where
-    T: Copy + std::cmp::Ord + std::ops::Add<T, Output = T> + std::ops::Sub<T, Output = T>,
+    T: Copy + std::cmp::PartialOrd + std::ops::Add<T, Output = T> + std::ops::Sub<T, Output = T>,
 {
     pub fn inc(&mut self) {
         if self.value <= self.max - self.step {
