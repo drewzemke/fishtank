@@ -93,44 +93,18 @@ impl Renderer {
     fn render_settings(settings: &Settings) -> String {
         let mut out = String::new();
         let selected = settings.selected_idx();
+        let params = settings.params();
 
-        // FIXME: can't use SETTINGS_WIDTH here?
+        for (idx, (name, precision)) in Settings::NAMES.iter().zip(Settings::PRECISIONS.iter()).enumerate() {
+            let value = *params[idx].value();
+            let marker = if selected == idx { '>' } else { ' ' };
 
-        out.push_str(&format!(
-            "{:>20}",
-            format!(
-                "{} gravity: {:.1}",
-                if selected == 0 { '>' } else { ' ' },
-                settings.gravity()
-            )
-        ));
-
-        out.push_str(&format!(
-            "{:>20}",
-            format!(
-                "{} dampening: {:.2}",
-                if selected == 1 { '>' } else { ' ' },
-                settings.dampening()
-            )
-        ));
-
-        out.push_str(&format!(
-            "{:>20}",
-            format!(
-                "{} density: {:.1}",
-                if selected == 2 { '>' } else { ' ' },
-                settings.target_density()
-            )
-        ));
-
-        out.push_str(&format!(
-            "{:>20}",
-            format!(
-                "{} stiffness: {:.0}",
-                if selected == 3 { '>' } else { ' ' },
-                settings.stiffness()
-            )
-        ));
+            out.push_str(&format!(
+                "{:>width$}",
+                format!("{} {}: {:.prec$}", marker, name, value, prec = precision),
+                width = SETTINGS_WIDTH
+            ));
+        }
 
         out
     }

@@ -23,6 +23,10 @@ impl Default for Settings {
 }
 
 impl Settings {
+    // metadata for rendering
+    pub const NAMES: [&'static str; 4] = ["gravity", "dampening", "density", "stiffness"];
+    pub const PRECISIONS: [usize; 4] = [1, 2, 1, 0];
+
     pub fn gravity(&self) -> f64 {
         *self.gravity.value()
     }
@@ -47,6 +51,15 @@ impl Settings {
         self.selected_idx
     }
 
+    // helper methods for iteration
+    pub fn params(&self) -> [&Param<f64>; 4] {
+        [&self.gravity, &self.dampening, &self.target_density, &self.stiffness]
+    }
+
+    fn params_mut(&mut self) -> [&mut Param<f64>; 4] {
+        [&mut self.gravity, &mut self.dampening, &mut self.target_density, &mut self.stiffness]
+    }
+
     pub fn select_next(&mut self) {
         self.selected_idx = (self.selected_idx + 1) % Self::num_settings();
     }
@@ -56,33 +69,18 @@ impl Settings {
     }
 
     pub fn inc_selected(&mut self) {
-        match self.selected_idx {
-            0 => self.gravity.inc(),
-            1 => self.dampening.inc(),
-            2 => self.target_density.inc(),
-            3 => self.stiffness.inc(),
-            _ => unreachable!(),
-        }
+        let idx = self.selected_idx;
+        self.params_mut()[idx].inc();
     }
 
     pub fn dec_selected(&mut self) {
-        match self.selected_idx {
-            0 => self.gravity.dec(),
-            1 => self.dampening.dec(),
-            2 => self.target_density.dec(),
-            3 => self.stiffness.dec(),
-            _ => unreachable!(),
-        }
+        let idx = self.selected_idx;
+        self.params_mut()[idx].dec();
     }
 
     pub fn reset_selected(&mut self) {
-        match self.selected_idx {
-            0 => self.gravity.reset(),
-            1 => self.dampening.reset(),
-            2 => self.target_density.reset(),
-            3 => self.stiffness.reset(),
-            _ => unreachable!(),
-        }
+        let idx = self.selected_idx;
+        self.params_mut()[idx].reset();
     }
 }
 
