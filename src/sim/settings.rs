@@ -5,6 +5,10 @@ pub struct Settings {
     dampening: Param<f64>,
     target_density: Param<f64>,
     stiffness: Param<f64>,
+    smoothing_radius: Param<f64>,
+    viscosity: Param<f64>,
+    mouse_force_strength: Param<f64>,
+    mouse_force_radius: Param<f64>,
 
     selected_idx: usize,
 }
@@ -16,6 +20,10 @@ impl Default for Settings {
             dampening: Param::default().min(0.).max(1.0).step(0.01).base(0.01),
             target_density: Param::default().min(0.1).max(2.0).step(0.1).base(1.0),
             stiffness: Param::default().min(0.).max(5000.).step(100.).base(2000.),
+            smoothing_radius: Param::default().min(0.5).max(5.0).step(0.1).base(2.0),
+            viscosity: Param::default().min(0.).max(10.0).step(0.1).base(2.0),
+            mouse_force_strength: Param::default().min(0.).max(10.0).step(0.5).base(3.0),
+            mouse_force_radius: Param::default().min(5.0).max(50.0).step(1.0).base(15.0),
 
             selected_idx: 0,
         }
@@ -24,8 +32,17 @@ impl Default for Settings {
 
 impl Settings {
     // metadata for rendering
-    pub const NAMES: [&'static str; 4] = ["gravity", "dampening", "density", "stiffness"];
-    pub const PRECISIONS: [usize; 4] = [1, 2, 1, 0];
+    pub const NAMES: [&'static str; 8] = [
+        "gravity",
+        "dampening",
+        "density",
+        "stiffness",
+        "smooth_r",
+        "viscosity",
+        "mouse_str",
+        "mouse_r",
+    ];
+    pub const PRECISIONS: [usize; 8] = [1, 2, 1, 0, 1, 1, 1, 0];
 
     pub fn gravity(&self) -> f64 {
         *self.gravity.value()
@@ -43,8 +60,34 @@ impl Settings {
         *self.stiffness.value()
     }
 
+    pub fn smoothing_radius(&self) -> f64 {
+        *self.smoothing_radius.value()
+    }
+
+    pub fn viscosity(&self) -> f64 {
+        *self.viscosity.value()
+    }
+
+    pub fn mouse_force_strength(&self) -> f64 {
+        *self.mouse_force_strength.value()
+    }
+
+    pub fn mouse_force_radius(&self) -> f64 {
+        *self.mouse_force_radius.value()
+    }
+
+    // computed values
+    pub fn smoothing_radius_sq(&self) -> f64 {
+        let r = self.smoothing_radius();
+        r * r
+    }
+
+    pub fn cell_size(&self) -> f64 {
+        0.9 * self.smoothing_radius()
+    }
+
     pub const fn num_settings() -> usize {
-        4
+        8
     }
 
     pub fn selected_idx(&self) -> usize {
@@ -52,12 +95,30 @@ impl Settings {
     }
 
     // helper methods for iteration
-    pub fn params(&self) -> [&Param<f64>; 4] {
-        [&self.gravity, &self.dampening, &self.target_density, &self.stiffness]
+    pub fn params(&self) -> [&Param<f64>; 8] {
+        [
+            &self.gravity,
+            &self.dampening,
+            &self.target_density,
+            &self.stiffness,
+            &self.smoothing_radius,
+            &self.viscosity,
+            &self.mouse_force_strength,
+            &self.mouse_force_radius,
+        ]
     }
 
-    fn params_mut(&mut self) -> [&mut Param<f64>; 4] {
-        [&mut self.gravity, &mut self.dampening, &mut self.target_density, &mut self.stiffness]
+    fn params_mut(&mut self) -> [&mut Param<f64>; 8] {
+        [
+            &mut self.gravity,
+            &mut self.dampening,
+            &mut self.target_density,
+            &mut self.stiffness,
+            &mut self.smoothing_radius,
+            &mut self.viscosity,
+            &mut self.mouse_force_strength,
+            &mut self.mouse_force_radius,
+        ]
     }
 
     pub fn select_next(&mut self) {

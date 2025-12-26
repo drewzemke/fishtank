@@ -5,10 +5,7 @@ use rayon::prelude::*;
 use particle::Particle;
 
 use crate::sim::{
-    constants::{
-        CELL_SIZE, MOUSE_FORCE_RADIUS, MOUSE_FORCE_STRENGTH, PARTICLE_MASS, SMOOTHING_RADIUS,
-        SMOOTHING_RADIUS_SQ, VISCOSITY,
-    },
+    constants::PARTICLE_MASS,
     kernels::{poly6, spiky_grad, visc_laplacian},
     settings::Settings,
 };
@@ -74,10 +71,10 @@ impl Simulation {
         let start_time = std::time::Instant::now();
 
         // hash particles into a grid
-        let (keys, spatial_hash) = self.build_hash();
+        let (keys, spatial_hash) = self.build_hash(settings);
 
         // density computation
-        let densities = self.compute_densities(&keys, &spatial_hash);
+        let densities = self.compute_densities(&keys, &spatial_hash, settings);
 
         // pressure computation
         let target_density = settings.target_density();
@@ -101,14 +98,15 @@ impl Simulation {
         self.last_frame_ms = time * 1000.;
     }
 
-    fn build_hash(&mut self) -> (Vec<GridPoint>, HashMap<GridPoint, Vec<usize>>) {
+    fn build_hash(&mut self, settings: &Settings) -> (Vec<GridPoint>, HashMap<GridPoint, Vec<usize>>) {
+        let cell_size = settings.cell_size();
         let keys = self
             .particles
             .iter()
             .map(|particle| {
                 (
-                    (particle.x() / CELL_SIZE).floor() as i64,
-                    (particle.y() / CELL_SIZE).floor() as i64,
+                    (particle.x() / cell_size).floor() as i64,
+                    (particle.y() / cell_size).floor() as i64,
                 )
             })
             .collect::<Vec<_>>();
@@ -128,7 +126,11 @@ impl Simulation {
         &mut self,
         keys: &[(i64, i64)],
         spatial_hash: &HashMap<(i64, i64), Vec<usize>>,
+        settings: &Settings,
     ) -> Vec<f64> {
+        let smoothing_radius = settings.smoothing_radius();
+        let smoothing_radius_sq = settings.smoothing_radius_sq();
+
         self.particles
             .par_iter()
             .enumerate()
@@ -147,11 +149,11 @@ impl Simulation {
                                 // restrict attention to neighbors within SMOOTHING_RADIUS
                                 let sq_dist =
                                     (pt.x() - pt2.x()).powi(2) + (pt.y() - pt2.y()).powi(2);
-                                if sq_dist > SMOOTHING_RADIUS_SQ {
+                                if sq_dist > smoothing_radius_sq {
                                     continue;
                                 }
 
-                                density += PARTICLE_MASS * poly6(sq_dist);
+                                density += PARTICLE_MASS * poly6(sq_dist, smoothing_radius, smoothing_radius_sq);
                             }
                         }
                     }
@@ -171,6 +173,10 @@ impl Simulation {
         settings: &Settings,
     ) -> Vec<(f64, f64)> {
         let gravity = settings.gravity();
+        let smoothing_radius = settings.smoothing_radius();
+        let viscosity = settings.viscosity();
+        let mouse_force_strength = settings.mouse_force_strength();
+        let mouse_force_radius = settings.mouse_force_radius();
 
         self.particles
             .par_iter()
@@ -190,14 +196,14 @@ impl Simulation {
                                 // restrict attention to neighbors within SMOOTHING_RADIUS, excluding self,
                                 let disp = (pt.x() - pt2.x(), pt.y() - pt2.y());
                                 let dist = (disp.0.powi(2) + disp.1.powi(2)).sqrt();
-                                if idx1 == *idx2 || dist > SMOOTHING_RADIUS || dist <= 0. {
+                                if idx1 == *idx2 || dist > smoothing_radius || dist <= 0. {
                                     continue;
                                 }
 
                                 // pressure force
                                 let pressure_force_coeff = PARTICLE_MASS
                                     * (pressures[idx1] + pressures[*idx2])
-                                    * spiky_grad(dist)
+                                    * spiky_grad(dist, smoothing_radius)
                                     / (2. * densities[*idx2] * dist);
 
                                 force.0 += pressure_force_coeff * disp.0;
@@ -207,7 +213,7 @@ impl Simulation {
                                 let vel_diff = (pt2.vel_x() - pt.vel_x(), pt2.vel_y() - pt.vel_y());
 
                                 let visc_force_coeff =
-                                    VISCOSITY * PARTICLE_MASS * visc_laplacian(dist)
+                                    viscosity * PARTICLE_MASS * visc_laplacian(dist, smoothing_radius)
                                         / densities[*idx2];
 
                                 force.0 += visc_force_coeff * vel_diff.0;
@@ -222,7 +228,7 @@ impl Simulation {
                     MouseForce::Positive { x, y } => {
                         let disp = (x - pt.x(), y - pt.y());
                         let dist = (disp.0.powi(2) + disp.1.powi(2)).sqrt();
-                        let coeff = MOUSE_FORCE_STRENGTH * (MOUSE_FORCE_RADIUS - dist).max(0.)
+                        let coeff = mouse_force_strength * (mouse_force_radius - dist).max(0.)
                             / densities[idx1];
 
                         // positive pressue => push away from the center
@@ -232,7 +238,7 @@ impl Simulation {
                     MouseForce::Negative { x, y } => {
                         let disp = (x - pt.x(), y - pt.y());
                         let dist = (disp.0.powi(2) + disp.1.powi(2)).sqrt();
-                        let coeff = MOUSE_FORCE_STRENGTH * (MOUSE_FORCE_RADIUS - dist).max(0.)
+                        let coeff = mouse_force_strength * (mouse_force_radius - dist).max(0.)
                             / densities[idx1];
 
                         // negative pressue => push towards the center
@@ -241,7 +247,7 @@ impl Simulation {
 
                         // also push lightly against the velocity of the particle if it's close to the center
                         // this stops the particles from oscillating wildly around the ball
-                        if dist < MOUSE_FORCE_RADIUS {
+                        if dist < mouse_force_radius {
                             force.0 -= coeff / 30.0 * pt.vel_x();
                             force.1 -= coeff / 30.0 * pt.vel_y();
                         }
