@@ -17,13 +17,13 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            gravity: Param::default().min(0.).max(20.).step(1.).base(15.),
+            gravity: Param::default().min(0.).max(50.).step(1.).base(15.),
             dampening: Param::default().min(0.).max(1.0).step(0.01).base(0.01),
-            target_density: Param::default().min(0.1).max(2.0).step(0.1).base(1.0),
-            stiffness: Param::default().min(0.).max(5000.).step(100.).base(2000.),
+            target_density: Param::default().min(0.1).max(10.0).step(0.1).base(1.0),
+            stiffness: Param::default().min(0.).max(9000.).step(100.).base(3000.),
             smoothing_radius: Param::default().min(0.5).max(5.0).step(0.1).base(2.0),
-            viscosity: Param::default().min(0.).max(10.0).step(0.1).base(2.0),
-            mouse_force_strength: Param::default().min(0.).max(10.0).step(0.5).base(3.0),
+            viscosity: Param::default().min(0.).max(20.0).step(0.1).base(2.0),
+            mouse_force_strength: Param::default().min(0.).max(20.0).step(0.5).base(3.0),
             mouse_force_radius: Param::default().min(5.0).max(50.0).step(1.0).base(15.0),
 
             selected_idx: 0,
@@ -36,15 +36,15 @@ impl Settings {
     // metadata for rendering
     pub const NAMES: [&'static str; 8] = [
         "Gravity",
-        "Dampening",
         "Density",
+        "Viscosity",
         "Stiffness",
         "Smoothing Rad",
-        "Viscosity",
+        "Dampening",
         "Mouse Force",
         "Mouse Radius",
     ];
-    pub const PRECISIONS: [usize; 8] = [1, 2, 1, 0, 1, 1, 1, 0];
+    pub const PRECISIONS: [usize; 8] = [1, 1, 1, 0, 1, 2, 1, 0];
 
     pub fn gravity(&self) -> f64 {
         *self.gravity.value()
@@ -108,11 +108,11 @@ impl Settings {
     pub fn params(&self) -> [&Param<f64>; 8] {
         [
             &self.gravity,
-            &self.dampening,
             &self.target_density,
+            &self.viscosity,
             &self.stiffness,
             &self.smoothing_radius,
-            &self.viscosity,
+            &self.dampening,
             &self.mouse_force_strength,
             &self.mouse_force_radius,
         ]
@@ -121,11 +121,11 @@ impl Settings {
     fn params_mut(&mut self) -> [&mut Param<f64>; 8] {
         [
             &mut self.gravity,
-            &mut self.dampening,
             &mut self.target_density,
+            &mut self.viscosity,
             &mut self.stiffness,
             &mut self.smoothing_radius,
-            &mut self.viscosity,
+            &mut self.dampening,
             &mut self.mouse_force_strength,
             &mut self.mouse_force_radius,
         ]
