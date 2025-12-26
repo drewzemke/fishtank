@@ -35,14 +35,14 @@ impl Default for Settings {
 impl Settings {
     // metadata for rendering
     pub const NAMES: [&'static str; 8] = [
-        "gravity",
-        "dampening",
-        "density",
-        "stiffness",
-        "smooth_r",
-        "viscosity",
-        "mouse_str",
-        "mouse_r",
+        "Gravity",
+        "Dampening",
+        "Density",
+        "Stiffness",
+        "Smoothing Rad",
+        "Viscosity",
+        "Mouse Force",
+        "Mouse Radius",
     ];
     pub const PRECISIONS: [usize; 8] = [1, 2, 1, 0, 1, 1, 1, 0];
 

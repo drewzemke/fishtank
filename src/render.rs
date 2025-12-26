@@ -2,7 +2,7 @@ use crate::sim::{Simulation, settings::Settings};
 
 const DITHER_RADIUS: f64 = 0.5;
 
-const SETTINGS_WIDTH: usize = 20;
+const SETTINGS_WIDTH: usize = 26;
 
 pub struct Renderer {
     rows: usize,
@@ -73,8 +73,8 @@ impl Renderer {
                         };
 
                         if settings.visible()
-                            && row_idx < Settings::num_settings()
-                            && col_idx > self.cols - SETTINGS_WIDTH
+                            && row_idx < Settings::num_settings() + 2
+                            && col_idx >= self.cols - SETTINGS_WIDTH
                         {
                             settings_render
                                 .chars()
@@ -100,6 +100,17 @@ impl Renderer {
         let selected = settings.selected_idx();
         let params = settings.params();
 
+        const CONTENT_WIDTH: usize = SETTINGS_WIDTH - 2; // subtract borders
+
+        // top border
+        out.push('┌');
+        out.push_str(&"─".repeat(CONTENT_WIDTH));
+        out.push('┐');
+
+        // settings rows
+        const NAME_COL_WIDTH: usize = 15; // width for name column (marker + name)
+        const VALUE_COL_WIDTH: usize = 7; // width for value column
+
         for (idx, (name, precision)) in Settings::NAMES
             .iter()
             .zip(Settings::PRECISIONS.iter())
@@ -108,12 +119,29 @@ impl Renderer {
             let value = *params[idx].value();
             let marker = if selected == idx { '>' } else { ' ' };
 
-            out.push_str(&format!(
-                "{:>width$}",
-                format!("{} {}: {:.prec$}", marker, name, value, prec = precision),
-                width = SETTINGS_WIDTH
-            ));
+            // format value with precision
+            let value_str = format!("{:.prec$}", value, prec = precision);
+
+            // left-align name in its column
+            let name_part = format!("{} {}", marker, name);
+            let name_col = format!("{:<width$}", name_part, width = NAME_COL_WIDTH);
+
+            // right-align value in its column
+            let value_col = format!("{:>width$}", value_str, width = VALUE_COL_WIDTH);
+
+            // combine and pad to full width
+            let mut line = format!("{} {}", name_col, value_col);
+            if line.len() < CONTENT_WIDTH {
+                line.push_str(&" ".repeat(CONTENT_WIDTH - line.len()));
+            }
+
+            out.push_str(&format!("│{}│", line));
         }
+
+        // bottom border
+        out.push('└');
+        out.push_str(&"─".repeat(CONTENT_WIDTH));
+        out.push('┘');
 
         out
     }
