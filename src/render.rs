@@ -72,7 +72,8 @@ impl Renderer {
                             }
                         };
 
-                        if row_idx < Settings::num_settings()
+                        if settings.visible()
+                            && row_idx < Settings::num_settings()
                             && col_idx > self.cols - SETTINGS_WIDTH
                         {
                             settings_render
@@ -91,11 +92,19 @@ impl Renderer {
     }
 
     fn render_settings(settings: &Settings) -> String {
+        if !settings.visible() {
+            return String::new();
+        }
+
         let mut out = String::new();
         let selected = settings.selected_idx();
         let params = settings.params();
 
-        for (idx, (name, precision)) in Settings::NAMES.iter().zip(Settings::PRECISIONS.iter()).enumerate() {
+        for (idx, (name, precision)) in Settings::NAMES
+            .iter()
+            .zip(Settings::PRECISIONS.iter())
+            .enumerate()
+        {
             let value = *params[idx].value();
             let marker = if selected == idx { '>' } else { ' ' };
 

@@ -57,6 +57,10 @@ fn main() -> anyhow::Result<()> {
                             // exit the program
                             break;
                         }
+                        KeyCode::Char('s') => {
+                            let mut settings = settings.lock().unwrap();
+                            settings.toggle_visibility();
+                        }
                         KeyCode::Char('r') => {
                             let mut settings = settings.lock().unwrap();
                             settings.reset_selected();

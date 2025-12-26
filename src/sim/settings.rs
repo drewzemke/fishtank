@@ -11,6 +11,7 @@ pub struct Settings {
     mouse_force_radius: Param<f64>,
 
     selected_idx: usize,
+    visible: bool,
 }
 
 impl Default for Settings {
@@ -26,6 +27,7 @@ impl Default for Settings {
             mouse_force_radius: Param::default().min(5.0).max(50.0).step(1.0).base(15.0),
 
             selected_idx: 0,
+            visible: false,
         }
     }
 }
@@ -94,6 +96,14 @@ impl Settings {
         self.selected_idx
     }
 
+    pub fn visible(&self) -> bool {
+        self.visible
+    }
+
+    pub fn toggle_visibility(&mut self) {
+        self.visible = !self.visible;
+    }
+
     // helper methods for iteration
     pub fn params(&self) -> [&Param<f64>; 8] {
         [
@@ -122,24 +132,39 @@ impl Settings {
     }
 
     pub fn select_next(&mut self) {
+        if !self.visible {
+            return;
+        }
         self.selected_idx = (self.selected_idx + 1) % Self::num_settings();
     }
 
     pub fn select_prev(&mut self) {
+        if !self.visible {
+            return;
+        }
         self.selected_idx = (Self::num_settings() + self.selected_idx - 1) % Self::num_settings();
     }
 
     pub fn inc_selected(&mut self) {
+        if !self.visible {
+            return;
+        }
         let idx = self.selected_idx;
         self.params_mut()[idx].inc();
     }
 
     pub fn dec_selected(&mut self) {
+        if !self.visible {
+            return;
+        }
         let idx = self.selected_idx;
         self.params_mut()[idx].dec();
     }
 
     pub fn reset_selected(&mut self) {
+        if !self.visible {
+            return;
+        }
         let idx = self.selected_idx;
         self.params_mut()[idx].reset();
     }
@@ -152,6 +177,7 @@ mod tests {
     #[test]
     fn move_cursor() {
         let mut settings = Settings::default();
+        settings.toggle_visibility();
 
         assert_eq!(settings.selected_idx, 0);
         settings.select_next();
@@ -163,6 +189,7 @@ mod tests {
     #[test]
     fn wrap_cursor() {
         let mut settings = Settings::default();
+        settings.toggle_visibility();
 
         assert_eq!(settings.selected_idx, 0);
         settings.select_prev();
