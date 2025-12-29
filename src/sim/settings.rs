@@ -1,6 +1,7 @@
 use crate::sim::param::Param;
 
 pub struct Settings {
+    particle_count: Param<f64>,
     gravity: Param<f64>,
     dampening: Param<f64>,
     target_density: Param<f64>,
@@ -17,6 +18,11 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            particle_count: Param::default()
+                .min(500.)
+                .max(20000.)
+                .step(500.)
+                .base(10000.),
             gravity: Param::default().min(0.).max(50.).step(1.).base(15.),
             dampening: Param::default().min(0.).max(1.0).step(0.01).base(0.01),
             target_density: Param::default().min(0.1).max(10.0).step(0.1).base(1.0),
@@ -34,7 +40,8 @@ impl Default for Settings {
 
 impl Settings {
     // metadata for rendering
-    pub const NAMES: [&'static str; 8] = [
+    pub const NAMES: [&'static str; 9] = [
+        "Particles",
         "Gravity",
         "Density",
         "Viscosity",
@@ -44,7 +51,11 @@ impl Settings {
         "Mouse Force",
         "Mouse Radius",
     ];
-    pub const PRECISIONS: [usize; 8] = [1, 1, 1, 0, 1, 2, 1, 0];
+    pub const PRECISIONS: [usize; 9] = [0, 1, 1, 1, 0, 1, 2, 1, 0];
+
+    pub fn particle_count(&self) -> usize {
+        (*self.particle_count.value()) as usize
+    }
 
     pub fn gravity(&self) -> f64 {
         *self.gravity.value()
@@ -89,7 +100,7 @@ impl Settings {
     }
 
     pub const fn num_settings() -> usize {
-        8
+        9
     }
 
     pub fn selected_idx(&self) -> usize {
@@ -105,8 +116,9 @@ impl Settings {
     }
 
     // helper methods for iteration
-    pub fn params(&self) -> [&Param<f64>; 8] {
+    pub fn params(&self) -> [&Param<f64>; 9] {
         [
+            &self.particle_count,
             &self.gravity,
             &self.target_density,
             &self.viscosity,
@@ -118,8 +130,9 @@ impl Settings {
         ]
     }
 
-    fn params_mut(&mut self) -> [&mut Param<f64>; 8] {
+    fn params_mut(&mut self) -> [&mut Param<f64>; 9] {
         [
+            &mut self.particle_count,
             &mut self.gravity,
             &mut self.target_density,
             &mut self.viscosity,

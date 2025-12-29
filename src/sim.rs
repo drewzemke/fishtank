@@ -67,6 +67,24 @@ impl Simulation {
         self.particles.push(Particle::new(x, y, 0., 0.));
     }
 
+    pub fn sync_particle_count(&mut self, target_count: usize) {
+        use rand::Rng;
+        let current_count = self.particles.len();
+
+        if current_count < target_count {
+            // add random particles
+            let mut rng = rand::rng();
+            for _ in 0..(target_count - current_count) {
+                let x = rng.random::<f64>() * self.width;
+                let y = rng.random::<f64>() * self.height;
+                self.add_particle(x, y);
+            }
+        } else if current_count > target_count {
+            // truncate
+            self.particles.truncate(target_count);
+        }
+    }
+
     pub fn update(&mut self, dt_secs: f64, settings: &Settings) {
         let start_time = std::time::Instant::now();
 

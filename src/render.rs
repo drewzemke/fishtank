@@ -116,11 +116,15 @@ impl Renderer {
             .zip(Settings::PRECISIONS.iter())
             .enumerate()
         {
-            let value = *params[idx].value();
             let marker = if selected == idx { '>' } else { ' ' };
 
-            // format value with precision
-            let value_str = format!("{:.prec$}", value, prec = precision);
+            // format value - handle particle count (idx 0) specially as integer
+            let value_str = if idx == 0 {
+                format!("{}", settings.particle_count())
+            } else {
+                let value = *params[idx].value();
+                format!("{:.prec$}", value, prec = precision)
+            };
 
             // left-align name in its column
             let name_part = format!("{} {}", marker, name);

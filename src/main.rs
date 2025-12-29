@@ -27,12 +27,13 @@ fn main() -> anyhow::Result<()> {
     let renderer = Renderer::new(rows as usize, cols as usize);
 
     let mut sim = Simulation::new(cols as f64, 2. * rows as f64);
+    let settings = Settings::default();
 
     // seed the sim with random particles
-    add_uniform_points(&mut sim, 10000, cols as f64, rows as f64 * 2.0);
+    add_uniform_points(&mut sim, settings.particle_count(), cols as f64, rows as f64 * 2.0);
 
     let sim = Arc::new(Mutex::new(sim));
-    let settings = Arc::new(Mutex::new(Settings::default()));
+    let settings = Arc::new(Mutex::new(settings));
 
     // used to compute framerate
     let mut frames = 0;
@@ -64,6 +65,10 @@ fn main() -> anyhow::Result<()> {
                         KeyCode::Char('r') => {
                             let mut settings = settings.lock().unwrap();
                             settings.reset_selected();
+                            let target_count = settings.particle_count();
+                            drop(settings);
+                            let mut sim = sim.lock().unwrap();
+                            sim.sync_particle_count(target_count);
                         }
                         KeyCode::Down => {
                             let mut settings = settings.lock().unwrap();
@@ -76,10 +81,18 @@ fn main() -> anyhow::Result<()> {
                         KeyCode::Right => {
                             let mut settings = settings.lock().unwrap();
                             settings.inc_selected();
+                            let target_count = settings.particle_count();
+                            drop(settings);
+                            let mut sim = sim.lock().unwrap();
+                            sim.sync_particle_count(target_count);
                         }
                         KeyCode::Left => {
                             let mut settings = settings.lock().unwrap();
                             settings.dec_selected();
+                            let target_count = settings.particle_count();
+                            drop(settings);
+                            let mut sim = sim.lock().unwrap();
+                            sim.sync_particle_count(target_count);
                         }
                         _ => {}
                     }
