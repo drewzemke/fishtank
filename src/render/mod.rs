@@ -1,10 +1,14 @@
 use crate::sim::{Simulation, settings::Settings};
 
+pub mod info;
 pub mod runner;
+
+use info::Info;
 
 const DITHER_RADIUS: f64 = 0.5;
 
 const SETTINGS_WIDTH: usize = 26;
+const INFO_WIDTH: usize = 20;
 
 pub struct Renderer {
     rows: usize,
@@ -21,7 +25,7 @@ impl Renderer {
         self.cols = cols;
     }
 
-    pub fn render(&self, sim: &Simulation, settings: &Settings) -> String {
+    pub fn render(&self, sim: &Simulation, settings: &Settings, info: &Info) -> String {
         let mut output = vec![vec![Some(0u8); self.cols]; self.rows];
 
         for (i, particle) in sim.particles().iter().enumerate() {
@@ -61,6 +65,7 @@ impl Renderer {
         }
 
         let settings_render = Self::render_settings(settings);
+        let info_render = Self::render_info(info);
 
         output
             .into_iter()
@@ -69,6 +74,7 @@ impl Renderer {
                 row.into_iter().enumerate().map({
                     // FIXME: any way to avoid this??
                     let settings_render = settings_render.clone();
+                    let info_render = info_render.clone();
 
                     move |(col_idx, byte)| {
                         let var_name = match byte {
@@ -79,7 +85,14 @@ impl Renderer {
                             }
                         };
 
-                        if settings.visible()
+                        // render info panel (top-left)
+                        if info.visible() && row_idx < 6 && col_idx < INFO_WIDTH {
+                            info_render
+                                .chars()
+                                .nth(row_idx * INFO_WIDTH + col_idx)
+                                .unwrap_or('X')
+                        // render settings panel (top-right)
+                        } else if settings.visible()
                             && row_idx < Settings::num_settings() + 2
                             && col_idx >= self.cols - SETTINGS_WIDTH
                         {
@@ -147,6 +160,43 @@ impl Renderer {
             }
 
             out.push_str(&format!("│{}│", line));
+        }
+
+        // bottom border
+        out.push('└');
+        out.push_str(&"─".repeat(CONTENT_WIDTH));
+        out.push('┘');
+
+        out
+    }
+
+    fn render_info(info: &Info) -> String {
+        if !info.visible() {
+            return String::new();
+        }
+
+        let mut out = String::new();
+        const CONTENT_WIDTH: usize = INFO_WIDTH - 2;
+
+        // top border
+        out.push('┌');
+        out.push_str(&"─".repeat(CONTENT_WIDTH));
+        out.push('┐');
+
+        // info rows
+        let lines = [
+            format!("Particles: {}", info.particle_count()),
+            format!("Sim: {:.1} ms", info.sim_time_ms()),
+            format!("Render: {:.1} ms", info.render_time_ms()),
+            format!("FPS: {:.1}", info.fps()),
+        ];
+
+        for line in &lines {
+            let mut padded = line.clone();
+            if padded.len() < CONTENT_WIDTH {
+                padded.push_str(&" ".repeat(CONTENT_WIDTH - padded.len()));
+            }
+            out.push_str(&format!("│{}│", padded));
         }
 
         // bottom border

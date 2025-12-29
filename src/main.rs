@@ -10,7 +10,7 @@ use crossterm::{
     terminal::{self, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use fishtank::{
-    render::{Renderer, runner::run_render_loop},
+    render::{Renderer, info::Info, runner::run_render_loop},
     sim::{Simulation, runner::run_sim_loop, seed::add_uniform_points, settings::Settings},
 };
 
@@ -33,6 +33,7 @@ fn main() -> anyhow::Result<()> {
     let sim = Arc::new(Mutex::new(sim));
     let settings = Arc::new(Mutex::new(settings));
     let renderer = Arc::new(Mutex::new(renderer));
+    let info = Arc::new(Mutex::new(Info::default()));
 
     // start the sim thread
     let sim_clone = sim.clone();
@@ -45,8 +46,9 @@ fn main() -> anyhow::Result<()> {
     let sim_clone = sim.clone();
     let settings_clone = settings.clone();
     let renderer_clone = renderer.clone();
+    let info_clone = info.clone();
     std::thread::spawn(move || {
-        run_render_loop(sim_clone, settings_clone, renderer_clone);
+        run_render_loop(sim_clone, settings_clone, renderer_clone, info_clone);
     });
 
     loop {
@@ -69,6 +71,10 @@ fn main() -> anyhow::Result<()> {
                         KeyCode::Char('s') => {
                             let mut settings = settings.lock().unwrap();
                             settings.toggle_visibility();
+                        }
+                        KeyCode::Char('i') => {
+                            let mut info = info.lock().unwrap();
+                            info.toggle_visibility();
                         }
                         KeyCode::Char('r') => {
                             let mut settings = settings.lock().unwrap();

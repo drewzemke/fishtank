@@ -7,7 +7,7 @@ use std::{
 use crossterm::{cursor::MoveTo, execute};
 
 use crate::{
-    render::Renderer,
+    render::{Renderer, info::Info},
     sim::{Simulation, settings::Settings},
 };
 
@@ -19,6 +19,7 @@ pub fn run_render_loop(
     sim: Arc<Mutex<Simulation>>,
     settings: Arc<Mutex<Settings>>,
     renderer: Arc<Mutex<Renderer>>,
+    info: Arc<Mutex<Info>>,
 ) {
     let mut stdout = stdout();
     let mut frames = 0;
@@ -42,29 +43,22 @@ pub fn run_render_loop(
             let sim = sim.lock().unwrap();
             let settings = settings.lock().unwrap();
             let renderer = renderer.lock().unwrap();
+            let mut info_lock = info.lock().unwrap();
 
-            let output = renderer.render(&sim, &settings);
+            // update info every 100 frames
+            if frames % 100 == 0 {
+                info_lock.update(
+                    sim.particles().len(),
+                    sim.last_frame_ms(),
+                    render_time_ms,
+                    framerate,
+                );
+            }
+
+            let output = renderer.render(&sim, &settings, &info_lock);
 
             execute!(stdout, MoveTo(0, 0)).unwrap();
             stdout.write_all(output.as_bytes()).unwrap();
-
-            if framerate >= 0. {
-                let particle_count = format!("{} particles", sim.particles().len());
-                execute!(stdout, MoveTo(0, 0)).unwrap();
-                stdout.write_all(particle_count.as_bytes()).unwrap();
-
-                let framerate_str = format!("{framerate:.1} FPS");
-                execute!(stdout, MoveTo(0, 1)).unwrap();
-                stdout.write_all(framerate_str.as_bytes()).unwrap();
-
-                let sim_time_str = format!("Sim: {:.1} ms", sim.last_frame_ms());
-                execute!(stdout, MoveTo(0, 2)).unwrap();
-                stdout.write_all(sim_time_str.as_bytes()).unwrap();
-
-                let render_time_str = format!("Render: {:.1} ms", render_time_ms);
-                execute!(stdout, MoveTo(0, 3)).unwrap();
-                stdout.write_all(render_time_str.as_bytes()).unwrap();
-            }
         }
 
         stdout.flush().unwrap();
