@@ -67,6 +67,11 @@ impl Simulation {
         self.particles.push(Particle::new(x, y, 0., 0.));
     }
 
+    pub fn resize(&mut self, width: f64, height: f64) {
+        self.width = width;
+        self.height = height;
+    }
+
     pub fn sync_particle_count(&mut self, target_count: usize) {
         use rand::Rng;
         let current_count = self.particles.len();

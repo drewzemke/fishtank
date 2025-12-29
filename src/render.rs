@@ -14,6 +14,11 @@ impl Renderer {
         Self { rows, cols }
     }
 
+    pub fn resize(&mut self, rows: usize, cols: usize) {
+        self.rows = rows;
+        self.cols = cols;
+    }
+
     pub fn render(&self, sim: &Simulation, settings: &Settings) -> String {
         let mut output = vec![vec![Some(0u8); self.cols]; self.rows];
 

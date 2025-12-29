@@ -24,7 +24,7 @@ fn main() -> anyhow::Result<()> {
 
     let (cols, rows) = terminal::size().unwrap();
 
-    let renderer = Renderer::new(rows as usize, cols as usize);
+    let mut renderer = Renderer::new(rows as usize, cols as usize);
 
     let mut sim = Simulation::new(cols as f64, 2. * rows as f64);
     let settings = Settings::default();
@@ -52,6 +52,11 @@ fn main() -> anyhow::Result<()> {
             let event = crossterm::event::read()?;
 
             match event {
+                crossterm::event::Event::Resize(cols, rows) => {
+                    renderer.resize(rows as usize, cols as usize);
+                    let mut sim = sim.lock().unwrap();
+                    sim.resize(cols as f64, 2. * rows as f64);
+                }
                 crossterm::event::Event::Key(event) => {
                     match event.code {
                         KeyCode::Char('q') => {
