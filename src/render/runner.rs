@@ -14,6 +14,7 @@ use crate::{
 const TARGET_FPS: f64 = 60.0;
 const TARGET_FRAME_TIME: Duration = Duration::from_micros((1_000_000.0 / TARGET_FPS) as u64);
 const SLEEP_OVERHEAD: Duration = Duration::from_millis(3); // compensate for OS sleep overhead
+const INFO_UPDATE_FREQUENCY: u64 = 50; // update info every N frames
 
 pub fn run_render_loop(
     sim: Arc<Mutex<Simulation>>,
@@ -30,11 +31,11 @@ pub fn run_render_loop(
     loop {
         let frame_start = Instant::now();
 
-        // update framerate every 100 frames
+        // update framerate
         frames += 1;
-        if frames % 100 == 0 {
+        if frames % INFO_UPDATE_FREQUENCY == 0 {
             let time = frame_time.elapsed();
-            framerate = 100.0 / time.as_secs_f64();
+            framerate = INFO_UPDATE_FREQUENCY as f64 / time.as_secs_f64();
             frame_time = std::time::Instant::now();
         }
 
@@ -45,13 +46,14 @@ pub fn run_render_loop(
             let renderer = renderer.lock().unwrap();
             let mut info_lock = info.lock().unwrap();
 
-            // update info every 100 frames
-            if frames % 100 == 0 {
+            // update info
+            if frames % INFO_UPDATE_FREQUENCY == 0 {
                 info_lock.update(
                     sim.particles().len(),
                     sim.last_frame_ms(),
                     render_time_ms,
                     framerate,
+                    sim.avg_density(),
                 );
             }
 

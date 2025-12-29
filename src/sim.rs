@@ -50,6 +50,7 @@ pub struct Simulation {
     pub mouse_force: MouseForce,
 
     last_frame_ms: f64,
+    avg_density: f64,
 }
 
 impl Simulation {
@@ -60,6 +61,7 @@ impl Simulation {
             particles: Vec::new(),
             mouse_force: MouseForce::None,
             last_frame_ms: 0.,
+            avg_density: 0.,
         }
     }
 
@@ -98,6 +100,13 @@ impl Simulation {
 
         // density computation
         let densities = self.compute_densities(&keys, &spatial_hash, settings);
+
+        // compute average density
+        self.avg_density = if !densities.is_empty() {
+            densities.iter().sum::<f64>() / densities.len() as f64
+        } else {
+            0.
+        };
 
         // pressure computation
         let target_density = settings.target_density();
@@ -326,5 +335,9 @@ impl Simulation {
 
     pub fn last_frame_ms(&self) -> f64 {
         self.last_frame_ms
+    }
+
+    pub fn avg_density(&self) -> f64 {
+        self.avg_density
     }
 }

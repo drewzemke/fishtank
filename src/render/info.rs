@@ -1,10 +1,11 @@
-const INFO_WIDTH: usize = 20;
+const INFO_WIDTH: usize = 22;
 
 pub struct Info {
     particle_count: usize,
     sim_time_ms: f64,
     render_time_ms: f64,
     fps: f64,
+    avg_density: f64,
     visible: bool,
 }
 
@@ -15,6 +16,7 @@ impl Default for Info {
             sim_time_ms: 0.,
             render_time_ms: 0.,
             fps: 0.,
+            avg_density: 0.,
             visible: false,
         }
     }
@@ -26,7 +28,7 @@ impl Info {
     }
 
     pub const fn render_height() -> usize {
-        6 // border + 4 lines + border
+        7 // border + 5 lines + border
     }
 
     pub fn update(
@@ -35,11 +37,13 @@ impl Info {
         sim_time_ms: f64,
         render_time_ms: f64,
         fps: f64,
+        avg_density: f64,
     ) {
         self.particle_count = particle_count;
         self.sim_time_ms = sim_time_ms;
         self.render_time_ms = render_time_ms;
         self.fps = fps;
+        self.avg_density = avg_density;
     }
 
     pub fn toggle_visibility(&mut self) {
@@ -65,10 +69,11 @@ impl Info {
 
         // info rows
         let lines = [
-            format!("Particles: {}", self.particle_count),
-            format!("Sim: {:.1} ms", self.sim_time_ms),
-            format!("Render: {:.1} ms", self.render_time_ms),
-            format!("FPS: {:.1}", self.fps),
+            format!(" Particles: {}", self.particle_count),
+            format!(" Avg Density: {:.2}", self.avg_density),
+            format!(" Sim: {:.1} ms", self.sim_time_ms),
+            format!(" Render: {:.1} ms", self.render_time_ms),
+            format!(" FPS: {:.1}", self.fps),
         ];
 
         for line in &lines {
