@@ -33,12 +33,16 @@ cargo run --release
 ## Parameters
 
 The settings panel lets you adjust simulation parameters in real-time:
-- **Particle Count** - Number of fluid particles
-- **Gravity** - Downward force
-- **Target Density** - Rest density of the fluid
-- **Viscosity** - Fluid thickness/resistance
-- **Stiffness** - Pressure response strength
-- **Smoothing Radius** - Particle interaction distance
-- **Dampening** - Boundary energy loss
-- **Mouse Force** - Strength of mouse interactions
-- **Mouse Radius** - Range of mouse forces
+- **Particle Count** - number of fluid particles
+- **Gravity** - downward force
+- **Target Density** - rest density of the fluid
+- **Viscosity** - fluid thickness/resistance
+- **Stiffness** - pressure response strength
+- **Smoothing Radius** - particle interaction distance
+- **Dampening** - boundary energy loss
+- **Mouse Force** - strength of mouse interactions
+- **Mouse Radius** - range of mouse forces
+
+## Future Goals
+
+- [ ] add actual fish
