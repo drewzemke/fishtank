@@ -1,5 +1,7 @@
 use crate::sim::param::Param;
 
+const SETTINGS_WIDTH: usize = 26;
+
 pub struct Settings {
     particle_count: Param<f64>,
     gravity: Param<f64>,
@@ -115,6 +117,14 @@ impl Settings {
         self.visible = !self.visible;
     }
 
+    pub const fn render_width() -> usize {
+        SETTINGS_WIDTH
+    }
+
+    pub const fn render_height() -> usize {
+        Self::num_settings() + 2 // border + settings + border
+    }
+
     // helper methods for iteration
     pub fn params(&self) -> [&Param<f64>; 9] {
         [
@@ -180,6 +190,62 @@ impl Settings {
         }
         let idx = self.selected_idx;
         self.params_mut()[idx].reset();
+    }
+
+    pub fn render(&self) -> String {
+        if !self.visible {
+            return String::new();
+        }
+
+        let mut out = String::new();
+        let selected = self.selected_idx;
+        let params = self.params();
+
+        const CONTENT_WIDTH: usize = SETTINGS_WIDTH - 2;
+
+        // top border
+        out.push('┌');
+        out.push_str(&"─".repeat(CONTENT_WIDTH));
+        out.push('┐');
+
+        // settings rows
+        const NAME_COL_WIDTH: usize = 15;
+        const VALUE_COL_WIDTH: usize = 7;
+
+        for (idx, (name, precision)) in Self::NAMES.iter().zip(Self::PRECISIONS.iter()).enumerate()
+        {
+            let marker = if selected == idx { '>' } else { ' ' };
+
+            // format value - handle particle count (idx 0) specially as integer
+            let value_str = if idx == 0 {
+                format!("{}", self.particle_count())
+            } else {
+                let value = *params[idx].value();
+                format!("{:.prec$}", value, prec = precision)
+            };
+
+            // left-align name in its column
+            let name_part = format!("{} {}", marker, name);
+            let name_col = format!("{:<width$}", name_part, width = NAME_COL_WIDTH);
+
+            // right-align value in its column
+            let value_col = format!("{:>width$}", value_str, width = VALUE_COL_WIDTH);
+
+            // combine and pad to full width
+            let mut line = format!("{} {}", name_col, value_col);
+            if line.len() < CONTENT_WIDTH {
+                line.push_str(&" ".repeat(CONTENT_WIDTH - line.len()));
+            }
+
+            out.push_str(&format!("│{}│", line));
+        }
+
+        // bottom border
+        out.push('└');
+        out.push_str(&"─".repeat(CONTENT_WIDTH));
+        out.push('┘');
+
+        out
     }
 }
 

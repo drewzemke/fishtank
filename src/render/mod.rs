@@ -7,9 +7,6 @@ use info::Info;
 
 const DITHER_RADIUS: f64 = 0.5;
 
-const SETTINGS_WIDTH: usize = 26;
-const INFO_WIDTH: usize = 20;
-
 pub struct Renderer {
     rows: usize,
     cols: usize,
@@ -64,8 +61,8 @@ impl Renderer {
             output[row][col] = Some(output[row][col].unwrap_or(0) | 1 << bit);
         }
 
-        let settings_render = Self::render_settings(settings);
-        let info_render = Self::render_info(info);
+        let settings_render = settings.render();
+        let info_render = info.render();
 
         output
             .into_iter()
@@ -86,20 +83,24 @@ impl Renderer {
                         };
 
                         // render info panel (top-left)
-                        if info.visible() && row_idx < 6 && col_idx < INFO_WIDTH {
+                        if info.visible()
+                            && row_idx < Info::render_height()
+                            && col_idx < Info::render_width()
+                        {
                             info_render
                                 .chars()
-                                .nth(row_idx * INFO_WIDTH + col_idx)
+                                .nth(row_idx * Info::render_width() + col_idx)
                                 .unwrap_or('X')
                         // render settings panel (top-right)
                         } else if settings.visible()
-                            && row_idx < Settings::num_settings() + 2
-                            && col_idx >= self.cols - SETTINGS_WIDTH
+                            && row_idx < Settings::render_height()
+                            && col_idx >= self.cols - Settings::render_width()
                         {
                             settings_render
                                 .chars()
                                 .nth(
-                                    row_idx * SETTINGS_WIDTH + col_idx - self.cols + SETTINGS_WIDTH,
+                                    row_idx * Settings::render_width() + col_idx - self.cols
+                                        + Settings::render_width(),
                                 )
                                 .unwrap_or('X')
                         } else {
@@ -109,101 +110,5 @@ impl Renderer {
                 })
             })
             .collect::<String>()
-    }
-
-    fn render_settings(settings: &Settings) -> String {
-        if !settings.visible() {
-            return String::new();
-        }
-
-        let mut out = String::new();
-        let selected = settings.selected_idx();
-        let params = settings.params();
-
-        const CONTENT_WIDTH: usize = SETTINGS_WIDTH - 2; // subtract borders
-
-        // top border
-        out.push('┌');
-        out.push_str(&"─".repeat(CONTENT_WIDTH));
-        out.push('┐');
-
-        // settings rows
-        const NAME_COL_WIDTH: usize = 15; // width for name column (marker + name)
-        const VALUE_COL_WIDTH: usize = 7; // width for value column
-
-        for (idx, (name, precision)) in Settings::NAMES
-            .iter()
-            .zip(Settings::PRECISIONS.iter())
-            .enumerate()
-        {
-            let marker = if selected == idx { '>' } else { ' ' };
-
-            // format value - handle particle count (idx 0) specially as integer
-            let value_str = if idx == 0 {
-                format!("{}", settings.particle_count())
-            } else {
-                let value = *params[idx].value();
-                format!("{:.prec$}", value, prec = precision)
-            };
-
-            // left-align name in its column
-            let name_part = format!("{} {}", marker, name);
-            let name_col = format!("{:<width$}", name_part, width = NAME_COL_WIDTH);
-
-            // right-align value in its column
-            let value_col = format!("{:>width$}", value_str, width = VALUE_COL_WIDTH);
-
-            // combine and pad to full width
-            let mut line = format!("{} {}", name_col, value_col);
-            if line.len() < CONTENT_WIDTH {
-                line.push_str(&" ".repeat(CONTENT_WIDTH - line.len()));
-            }
-
-            out.push_str(&format!("│{}│", line));
-        }
-
-        // bottom border
-        out.push('└');
-        out.push_str(&"─".repeat(CONTENT_WIDTH));
-        out.push('┘');
-
-        out
-    }
-
-    fn render_info(info: &Info) -> String {
-        if !info.visible() {
-            return String::new();
-        }
-
-        let mut out = String::new();
-        const CONTENT_WIDTH: usize = INFO_WIDTH - 2;
-
-        // top border
-        out.push('┌');
-        out.push_str(&"─".repeat(CONTENT_WIDTH));
-        out.push('┐');
-
-        // info rows
-        let lines = [
-            format!("Particles: {}", info.particle_count()),
-            format!("Sim: {:.1} ms", info.sim_time_ms()),
-            format!("Render: {:.1} ms", info.render_time_ms()),
-            format!("FPS: {:.1}", info.fps()),
-        ];
-
-        for line in &lines {
-            let mut padded = line.clone();
-            if padded.len() < CONTENT_WIDTH {
-                padded.push_str(&" ".repeat(CONTENT_WIDTH - padded.len()));
-            }
-            out.push_str(&format!("│{}│", padded));
-        }
-
-        // bottom border
-        out.push('└');
-        out.push_str(&"─".repeat(CONTENT_WIDTH));
-        out.push('┘');
-
-        out
     }
 }
