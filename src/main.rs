@@ -1,16 +1,16 @@
 use std::{
-    io::{Write, stdout},
+    io::stdout,
     sync::{Arc, Mutex},
 };
 
 use crossterm::{
-    cursor::{Hide, MoveTo, Show},
+    cursor::{Hide, Show},
     event::{DisableMouseCapture, EnableMouseCapture, KeyCode, MouseEventKind},
     execute,
     terminal::{self, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use fishtank::{
-    render::Renderer,
+    render::{Renderer, runner::run_render_loop},
     sim::{Simulation, runner::run_sim_loop, seed::add_uniform_points, settings::Settings},
 };
 
@@ -46,51 +46,7 @@ fn main() -> anyhow::Result<()> {
     let settings_clone = settings.clone();
     let renderer_clone = renderer.clone();
     std::thread::spawn(move || {
-        let mut stdout = stdout();
-        let mut frames = 0;
-        let mut framerate: f64 = -1.;
-        let mut frame_time = std::time::Instant::now();
-
-        loop {
-            // cap at ~60 fps
-            std::thread::sleep(std::time::Duration::from_millis(16));
-
-            // update framerate every 100 frames
-            frames += 1;
-            if frames % 100 == 0 {
-                let time = frame_time.elapsed();
-                framerate = 100.0 / time.as_secs_f64();
-                frame_time = std::time::Instant::now();
-            }
-
-            // render
-            {
-                let sim = sim_clone.lock().unwrap();
-                let settings = settings_clone.lock().unwrap();
-                let renderer = renderer_clone.lock().unwrap();
-
-                let output = renderer.render(&sim, &settings);
-
-                execute!(stdout, MoveTo(0, 0)).unwrap();
-                stdout.write_all(output.as_bytes()).unwrap();
-
-                if framerate >= 0. {
-                    let particle_count = format!("{} particles", sim.particles().len());
-                    execute!(stdout, MoveTo(0, 0)).unwrap();
-                    stdout.write_all(particle_count.as_bytes()).unwrap();
-
-                    let framerate_str = format!("{framerate:.1} FPS");
-                    execute!(stdout, MoveTo(0, 1)).unwrap();
-                    stdout.write_all(framerate_str.as_bytes()).unwrap();
-
-                    let sim_time_str = format!("Sim: {:.1} ms", sim.last_frame_ms());
-                    execute!(stdout, MoveTo(0, 2)).unwrap();
-                    stdout.write_all(sim_time_str.as_bytes()).unwrap();
-                }
-            }
-
-            stdout.flush().unwrap();
-        }
+        run_render_loop(sim_clone, settings_clone, renderer_clone);
     });
 
     loop {

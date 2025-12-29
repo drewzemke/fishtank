@@ -1,5 +1,7 @@
 use crate::sim::{Simulation, settings::Settings};
 
+pub mod runner;
+
 const DITHER_RADIUS: f64 = 0.5;
 
 const SETTINGS_WIDTH: usize = 26;
