@@ -20,11 +20,9 @@ fn main() -> anyhow::Result<()> {
     crossterm::terminal::enable_raw_mode()?;
     execute!(stdout(), Clear(ClearType::All))?;
 
-    let mut stdout = stdout();
-
     let (cols, rows) = terminal::size().unwrap();
 
-    let mut renderer = Renderer::new(rows as usize, cols as usize);
+    let renderer = Renderer::new(rows as usize, cols as usize);
 
     let mut sim = Simulation::new(cols as f64, 2. * rows as f64);
     let settings = Settings::default();
@@ -34,29 +32,78 @@ fn main() -> anyhow::Result<()> {
 
     let sim = Arc::new(Mutex::new(sim));
     let settings = Arc::new(Mutex::new(settings));
+    let renderer = Arc::new(Mutex::new(renderer));
 
-    // used to compute framerate
-    let mut frames = 0;
-    let mut framerate: f64 = -1.;
-    let mut frame_time = std::time::Instant::now();
-
-    // start the sim
+    // start the sim thread
     let sim_clone = sim.clone();
     let settings_clone = settings.clone();
     std::thread::spawn(move || {
         run_sim_loop(sim_clone, settings_clone);
     });
 
-    loop {
-        if crossterm::event::poll(std::time::Duration::from_millis(10))? {
-            let event = crossterm::event::read()?;
+    // start the render thread
+    let sim_clone = sim.clone();
+    let settings_clone = settings.clone();
+    let renderer_clone = renderer.clone();
+    std::thread::spawn(move || {
+        let mut stdout = stdout();
+        let mut frames = 0;
+        let mut framerate: f64 = -1.;
+        let mut frame_time = std::time::Instant::now();
 
-            match event {
-                crossterm::event::Event::Resize(cols, rows) => {
-                    renderer.resize(rows as usize, cols as usize);
-                    let mut sim = sim.lock().unwrap();
-                    sim.resize(cols as f64, 2. * rows as f64);
+        loop {
+            // cap at ~60 fps
+            std::thread::sleep(std::time::Duration::from_millis(16));
+
+            // update framerate every 100 frames
+            frames += 1;
+            if frames % 100 == 0 {
+                let time = frame_time.elapsed();
+                framerate = 100.0 / time.as_secs_f64();
+                frame_time = std::time::Instant::now();
+            }
+
+            // render
+            {
+                let sim = sim_clone.lock().unwrap();
+                let settings = settings_clone.lock().unwrap();
+                let renderer = renderer_clone.lock().unwrap();
+
+                let output = renderer.render(&sim, &settings);
+
+                execute!(stdout, MoveTo(0, 0)).unwrap();
+                stdout.write_all(output.as_bytes()).unwrap();
+
+                if framerate >= 0. {
+                    let particle_count = format!("{} particles", sim.particles().len());
+                    execute!(stdout, MoveTo(0, 0)).unwrap();
+                    stdout.write_all(particle_count.as_bytes()).unwrap();
+
+                    let framerate_str = format!("{framerate:.1} FPS");
+                    execute!(stdout, MoveTo(0, 1)).unwrap();
+                    stdout.write_all(framerate_str.as_bytes()).unwrap();
+
+                    let sim_time_str = format!("Sim: {:.1} ms", sim.last_frame_ms());
+                    execute!(stdout, MoveTo(0, 2)).unwrap();
+                    stdout.write_all(sim_time_str.as_bytes()).unwrap();
                 }
+            }
+
+            stdout.flush().unwrap();
+        }
+    });
+
+    loop {
+        // blocking wait for events - no need to poll at high rate
+        let event = crossterm::event::read()?;
+
+        match event {
+            crossterm::event::Event::Resize(cols, rows) => {
+                let mut renderer = renderer.lock().unwrap();
+                renderer.resize(rows as usize, cols as usize);
+                let mut sim = sim.lock().unwrap();
+                sim.resize(cols as f64, 2. * rows as f64);
+            }
                 crossterm::event::Event::Key(event) => {
                     match event.code {
                         KeyCode::Char('q') => {
@@ -126,46 +173,10 @@ fn main() -> anyhow::Result<()> {
                 }
                 _ => {}
             }
-        }
-
-        // update framerate every 100 frames
-        frames += 1;
-        if frames % 100 == 0 {
-            let time = frame_time.elapsed();
-            framerate = 100.0 / time.as_secs_f64();
-            frame_time = std::time::Instant::now();
-        }
-
-        // render
-        {
-            let sim = sim.lock().unwrap();
-            let settings = settings.lock().unwrap();
-
-            let output = renderer.render(&sim, &settings);
-
-            execute!(stdout, MoveTo(0, 0))?;
-            stdout.write_all(output.as_bytes())?;
-
-            if framerate >= 0. {
-                let particle_count = format!("{} particles", sim.particles().len());
-                execute!(stdout, MoveTo(0, 0))?;
-                stdout.write_all(particle_count.as_bytes())?;
-
-                let framerate = format!("{framerate:.1} FPS");
-                execute!(stdout, MoveTo(0, 1))?;
-                stdout.write_all(framerate.as_bytes())?;
-
-                let framerate = format!("Sim: {:.1} ms", sim.last_frame_ms());
-                execute!(stdout, MoveTo(0, 2))?;
-                stdout.write_all(framerate.as_bytes())?;
-            }
-        }
-
-        stdout.flush()?;
     }
 
     // end terminal
-    execute!(stdout, Show, DisableMouseCapture, LeaveAlternateScreen)?;
+    execute!(stdout(), Show, DisableMouseCapture, LeaveAlternateScreen)?;
     crossterm::terminal::disable_raw_mode()?;
 
     Ok(())
